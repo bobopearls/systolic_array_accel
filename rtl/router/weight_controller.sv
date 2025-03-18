@@ -27,6 +27,7 @@ module wr_controller #(
     output logic o_fifo_reset,
     output logic o_fifo_clear, // Clear only FIFO
     output logic o_tr_clear,
+    output logic o_cntr_clear,
     
     // Status signals
     input logic i_fifo_full,
@@ -72,6 +73,7 @@ module wr_controller #(
             o_dl_id <= 0;
             o_dl_addr_write_en <= 0;
             o_fifo_reset <= 0;
+            o_cntr_clear <= 0;
             prev_addr <= 0;
             o_c <= 0;
             c_done <= 0;
@@ -89,6 +91,7 @@ module wr_controller #(
             o_dl_id <= 0;
             o_dl_addr_write_en <= 0;
             o_fifo_reset <= 0;
+            o_cntr_clear <= 0;
             prev_addr <= 0;
             o_c <= 0;
             c_done <= 0;
@@ -108,7 +111,7 @@ module wr_controller #(
                             o_reg_clear <= 1;
                         end
                         o_c <= i_o_c;
-                        
+                        o_cntr_clear <= 0;
                         o_fifo_clear <= 0;
                         o_tr_clear <= 0;
                         o_ready <= 0;
@@ -118,6 +121,7 @@ module wr_controller #(
                 end
 
                 CLEAR: begin
+                    
                     o_fifo_reset <= 0;
                     o_reg_clear <= 0;
                     o_dl_addr_write_en <= 0;
@@ -171,10 +175,11 @@ module wr_controller #(
                 DATA_OUT: begin
                     if (i_fifo_empty) begin
                         o_pop_en <= 0;
-                        // o_ready <= 0;
+                        o_ready <= 0;
                         o_context_done <= 1;
                         o_tr_clear <= 1;
                         o_fifo_clear <= 1;
+                        o_cntr_clear <= 1;
                         state <= IDLE;
                     end else if (i_pop_en) begin
                         o_pop_en <= 1;

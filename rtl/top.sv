@@ -104,11 +104,13 @@ module top #(
     logic [ROWS-1:0] ir_data_valid;
     logic [ROWS-1:0][DATA_WIDTH-1:0] ir_ifmap;
     logic [0:ROWS-1][DATA_WIDTH-1:0] s_ifmap;
+    logic [0:ROWS-1] s_ifmap_valid;
 
     genvar ii;
     generate
         for (ii=0; ii < ROWS; ii++) begin
             assign s_ifmap[ii] = ir_ifmap[ii];
+            assign s_ifmap_valid[ii] = ir_data_valid[ii];
         end
     endgenerate
 
@@ -151,11 +153,13 @@ module top #(
     logic [COLUMNS-1:0] wr_data_valid;
     logic [COLUMNS-1:0][DATA_WIDTH-1:0] wr_weight;
     logic [0:COLUMNS-1][DATA_WIDTH-1:0] s_weight;
+    logic [0:COLUMNS-1] s_weight_valid;
 
     genvar jj;
     generate
         for (ii=0; ii < COLUMNS; ii++) begin
             assign s_weight[ii] = wr_weight[ii];
+            assign s_weight_valid[ii] = wr_data_valid[ii];
         end
     endgenerate
     
@@ -190,23 +194,27 @@ module top #(
         .o_done(wr_done)
     );
 
-    // systolic_array #(
-    //     .DATA_WIDTH(DATA_WIDTH),
-    //     .WIDTH(COLUMNS),
-    //     .HEIGHT(ROWS)
-    // ) systolic_array_inst (
-    //     .i_clk(i_clk),
-    //     .i_nrst(i_nrst),
-    //     .i_mode(i_p_mode),
-    //     .i_reg_clear(i_reg_clear || or_done), // Need to add signals to clear only inputs
-    //     .i_pe_en(|ir_data_valid),
-    //     .i_psum_out_en(psum_out_en),
-    //     .i_ifmap(s_ifmap),
-    //     .i_weight(weight),
-    //     .o_ofmap(ofmap)
-    // );
+    systolic_array #(
+        .DATA_WIDTH(DATA_WIDTH),
+        .WIDTH(COLUMNS),
+        .HEIGHT(ROWS)
+    ) systolic_array_inst (
+        .i_clk(i_clk),
+        .i_nrst(i_nrst),
+        .i_mode(i_p_mode),
+        .i_reg_clear(i_reg_clear || or_done), 
+        .i_pe_en(),
+        .i_psum_out_en(psum_out_en),
+        .i_scan_en(),
+        .i_ifmap(s_ifmap),
+        .i_ifmap_valid(s_ifmap_valid),
+        .i_weight(s_weight),
+        .i_weight_valid(s_weight_valid),
+        .o_ofmap(ofmap),
+        .o_ofmap_valid()
+    );
 
-    // logic [0:ROWS-1][DATA_WIDTH*2-1:0] ofmap;
+    logic [0:ROWS-1][DATA_WIDTH*2-1:0] ofmap;
 
     // output_router #(
     //     .SPAD_ADDR_WIDTH(ADDR_WIDTH),

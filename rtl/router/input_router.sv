@@ -58,7 +58,7 @@ module input_router #(
     logic tr_data_valid;
 
     // Controller to Router and Tile Reader
-    logic route_en, reg_clear, tr_clear;
+    logic route_en, reg_clear, tr_clear, cntr_clear;
 
     // Controller to Router Array
     logic fifo_pop_en, fifo_route_done, fifo_empty, fifo_full, fifo_clear, fifo_idle;
@@ -123,6 +123,7 @@ module input_router #(
         .o_reg_clear(reg_clear),
         .o_fifo_clear(fifo_clear),
         .o_tr_clear(tr_clear),
+        .o_cntr_clear(cntr_clear),
         .i_fifo_full(fifo_full),
         .i_fifo_route_done(fifo_route_done),
         .i_fifo_empty(fifo_empty),
@@ -144,6 +145,7 @@ module input_router #(
         .i_clk(i_clk),
         .i_nrst(i_nrst),
         .i_reg_clear(reg_clear),
+        .i_cntr_clear(cntr_clear),
         .i_fifo_clear(fifo_clear),
         .i_fifo_ptr_reset(i_fifo_ptr_reset),
         .i_id(dl_id),

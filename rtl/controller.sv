@@ -29,6 +29,7 @@ module top_controller # (
     output logic o_wr_en,
     output logic o_ir_pop_en,
     output logic o_wr_pop_en,
+    output logic o_pe_en, // Systolic array
 
     // Ready to Pop signals
     input logic i_ir_ready,
@@ -131,6 +132,8 @@ module top_controller # (
                 FIFO_POP: begin
                     // Done popping from both routers
                     if (i_ir_context_done & i_wr_context_done) begin
+                        o_ir_pop_en <= 0;
+                        o_wr_pop_en <= 0;
                         state <= COMPUTE;
                     end
                 end
@@ -138,8 +141,7 @@ module top_controller # (
                 // Given row and column, estimate how many cycles it will take to compute
                 // For now, we will assume it takes 1 cycle to compute
                 COMPUTE: begin
-                    o_ir_pop_en <= 0;
-                    o_wr_pop_en <= 0;
+
                     state <= IDLE;
                 end
             endcase

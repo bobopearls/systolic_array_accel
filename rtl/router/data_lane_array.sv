@@ -9,6 +9,7 @@ module data_lane_array #(
     input logic i_clk,
     input logic i_nrst,
     input logic i_reg_clear,
+    input logic i_cntr_clear,
     input logic i_fifo_clear,
     input logic i_fifo_ptr_reset,
 
@@ -45,7 +46,7 @@ module data_lane_array #(
             rr_pop_en <= 0;
             counter <= 0;
         end else begin
-            if (i_reg_clear) begin
+            if (i_reg_clear || i_cntr_clear) begin
                 rr_pop_en <= 0;
                 counter <= 0;
             end else if (i_miso_pop_en) begin

@@ -29,6 +29,7 @@ module ir_controller #(
     output logic o_reg_clear, // Clear everything
     output logic o_fifo_clear, // Clear only FIFO
     output logic o_tr_clear,
+    output logic o_cntr_clear,
     
     // Status signals
     input logic i_fifo_full,
@@ -78,6 +79,7 @@ module ir_controller #(
             prev_addr <= 0;
             o_x <= 0;
             o_y <= 0;
+            o_cntr_clear <= 0;
             xy_done <= 0;
             state <= IDLE;
         end else if (i_reg_clear) begin
@@ -96,6 +98,7 @@ module ir_controller #(
             prev_addr <= 0;
             o_x <= 0;
             o_y <= 0;
+            o_cntr_clear <= 0;
             xy_done <= 0;
             state <= IDLE;
         end else begin
@@ -112,11 +115,13 @@ module ir_controller #(
                             o_reg_clear <= 1;
                         end
                         o_ready <= 0;
+                        o_cntr_clear <= 0;
                         state <= CLEAR;
                     end
                 end
 
                 CLEAR: begin
+                    
                     o_fifo_clear <= 0;
                     o_tr_clear <= 0;
                     o_reg_clear <= 0;
@@ -179,10 +184,11 @@ module ir_controller #(
                 DATA_OUT: begin
                     if (i_fifo_empty) begin
                         o_pop_en <= 0;
-                        // o_ready <= 0;
+                        o_ready <= 0;
                         o_context_done <= 1;
                         o_tr_clear <= 1;
                         o_fifo_clear <= 1;
+                        o_cntr_clear <= 1;
 
                         if (i_fifo_route_done) begin
                             o_tile_done <= 1;
