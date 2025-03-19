@@ -3,7 +3,10 @@
 */
 module ir_controller #(
     parameter int ROW = 4,
-    parameter int ADDR_WIDTH = 8
+    parameter int ADDR_WIDTH = 8,
+    parameter int KERNEL_SIZE = 3,
+    parameter int KERNEL_LENGTH = 9,
+    parameter int SPAD_N = 8
 ) (
     input logic i_clk,
     input logic i_nrst,
@@ -11,13 +14,18 @@ module ir_controller #(
     input logic i_reg_clear,
     input logic i_pop_en,
 
+    // Convolution mode - 0: PWise, 1: DWise
+    input logic i_conv_mode,
+
     // Array dimensions
     input logic [ADDR_WIDTH-1:0] i_i_size,
     input logic [ADDR_WIDTH-1:0] i_o_size,
     input logic [ADDR_WIDTH-1:0] i_i_c_size,
+    input logic [ADDR_WIDTH-1:0] i_i_c,
     input logic [ADDR_WIDTH-1:0] i_start_addr,
 
     // Data lane address assignment
+    output logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] o_dl_sw_addr,
     output logic [ADDR_WIDTH-1:0] o_dl_start_addr,
     output logic [ADDR_WIDTH-1:0] o_dl_end_addr,
     output logic [ROW-1:0] o_dl_id,
@@ -62,6 +70,8 @@ module ir_controller #(
     assign y_increment = o_y < i_o_size - 1;
     assign xy_increment = x_increment || y_increment;
 
+    logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] addr;
+
     always_ff @(posedge i_clk or negedge i_nrst) begin
         if (~i_nrst) begin
             o_route_en <= 0;
@@ -72,6 +82,7 @@ module ir_controller #(
             o_fifo_clear <= 0;
             o_tr_clear <= 0;
             o_ready <= 0;
+            o_dl_sw_addr <= 0;
             o_dl_start_addr <= 0;
             o_dl_end_addr <= 0;
             o_dl_id <= 0;
@@ -92,6 +103,7 @@ module ir_controller #(
             o_fifo_clear <= 0;
             o_tr_clear <= 0;
             o_ready <= 0;
+            o_dl_sw_addr <= 0;
             o_dl_start_addr <= 0;
             o_dl_end_addr <= 0;
             o_dl_id <= 0;
@@ -109,12 +121,17 @@ module ir_controller #(
                     if (xy_done & i_fifo_route_done) begin
                         o_done <= 1;
                     end else if (route_en) begin
-                        if (o_context_done & ~i_fifo_route_done) begin
-                            clear_type <= 1;
-                            o_reg_clear <= 0;
-                        end else begin
+                        if (i_conv_mode) begin
                             clear_type <= 0;
                             o_reg_clear <= 1;
+                        end else begin
+                            if (o_context_done & ~i_fifo_route_done) begin
+                                clear_type <= 1;
+                                o_reg_clear <= 0;
+                            end else begin
+                                clear_type <= 0;
+                                o_reg_clear <= 1;
+                            end
                         end
                         o_ready <= 0;
                         o_cntr_clear <= 0;
@@ -136,15 +153,22 @@ module ir_controller #(
                 end
 
                 ADDRESS_GENERATION: begin
-                    o_dl_end_addr <= i_start_addr + o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
-                    prev_addr <= i_start_addr + o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
-                    o_dl_start_addr <= prev_addr;
+                    if (i_conv_mode) begin
+                        // Dwise
+                        o_dl_sw_addr <= addr;
+                    end else begin
+                        // Pwise
+                        o_dl_end_addr <= (i_start_addr * SPAD_N) + o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
+                        prev_addr <= o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
+                        o_dl_start_addr <= prev_addr + (i_start_addr * SPAD_N);
+                    end
                     o_dl_addr_write_en <= 1;
                     state <= XY_INCREMENT;
                 end
 
                 // This maps the Height and Width of ifmap to Systolic Array
                 XY_INCREMENT: begin
+                    o_dl_addr_write_en <= 0;
                     if (y_increment) begin
                         o_y <= o_y + 1;
                     end else begin
@@ -155,17 +179,15 @@ module ir_controller #(
                             o_x <= 0;
                             xy_done <= 1;
                             state <= TILE_COMPARISON;
-                            o_dl_addr_write_en <= 0;
+                            
                         end
                     end
 
                     if (o_dl_id == ROW - 1) begin
                         o_dl_id <= 0;
-                        o_dl_addr_write_en <= 0;
                         state <= TILE_COMPARISON;
                     end else if (xy_increment) begin
                         o_dl_id <= o_dl_id + 1;
-                        o_dl_addr_write_en <= 1;
                         state <= ADDRESS_GENERATION;
                     end
                 end
@@ -203,5 +225,28 @@ module ir_controller #(
             endcase
         end
     end
+
+    // Dwise sliding window address generation
+    genvar x, y;
+    generate  
+        for (x = 0; x < KERNEL_SIZE; x = x + 1) begin : gen_x
+            for (y = 0; y < KERNEL_SIZE; y = y + 1) begin : gen_y
+                localparam int addr_idx = x * KERNEL_SIZE + y;
+                always_comb begin
+                    if (i_conv_mode) begin
+                    // offset_nchw(n, c, h, w) = c * HW + h * W + w
+                    // Uncomment if using NCHW format
+                    // addr[addr_idx] = i_start_addr + ((i_o_x + x) * i_i_size + (i_o_y + y));
+
+                    // offset_nhwc(n, c, h, w) = h * WC + w * C + c
+                    // Uncomment if using NHWC format
+                        addr[addr_idx] = (i_start_addr * SPAD_N) + (o_x + x) * i_i_size * i_i_c_size + (o_y + y) * i_i_c_size + i_i_c;
+                    end else begin
+                        addr[addr_idx] = '0;
+                    end
+                end
+            end
+        end
+    endgenerate
 
 endmodule

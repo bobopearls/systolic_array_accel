@@ -19,6 +19,8 @@ module spad # (
     always_ff @(posedge i_clk) begin
         if (i_read_en) begin
             o_data_out <= buffer[i_read_addr];
+        end else begin
+            o_data_out <= 0;
         end
     end
 

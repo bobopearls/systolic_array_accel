@@ -11,7 +11,7 @@ module miso_fifo #(
     input logic [DATA_LENGTH-1:0][DATA_WIDTH-1:0] i_data,       
     input logic [DATA_LENGTH-1:0] i_valid,
     output logic [DATA_WIDTH-1:0] o_data,
-    output logic o_empty, o_full, o_enough_slots, o_pop_valid,
+    output logic o_empty, o_full, o_pop_valid,
     output logic [ADDR_WIDTH:0] o_slots
 );
     localparam _8x8 = 2'b00;
@@ -149,6 +149,5 @@ module miso_fifo #(
         o_full = (w_pointer == DEPTH);
         o_slots = w_pointer;
         o_empty = (w_pointer == r_pointer);
-        o_enough_slots = (DEPTH - (w_pointer)) > DATA_LENGTH;
     end
 endmodule
