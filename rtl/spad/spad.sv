@@ -1,19 +1,17 @@
 module spad # (
     parameter int ADDR_WIDTH = 8,
-    parameter int DATA_WIDTH = 64
+    parameter int SPAD_WIDTH = 64,
+    parameter int DATA_WIDTH = 8,
+    parameter int SPAD_N = SPAD_WIDTH / DATA_WIDTH
 ) (
     input logic i_clk, i_nrst, i_write_en, i_read_en,
-    input logic [DATA_WIDTH-1:0] i_data_in,
+    input logic [SPAD_WIDTH-1:0] i_data_in,
+    input logic [SPAD_N-1:0] i_write_mask,
     input logic [ADDR_WIDTH-1:0] i_write_addr, i_read_addr,
-    output logic [DATA_WIDTH-1:0] o_data_out,
+    output logic [SPAD_WIDTH-1:0] o_data_out,
     output logic o_data_out_valid
 );
-    logic [DATA_WIDTH-1:0] buffer [(2**ADDR_WIDTH)-1:0];
-
-    // initial begin
-    //     $monitor("[%0t] [BUFFER] writeEn=%0b dataIn=0x%0h readEn=%0b dataOut=0x%0h",
-    //         $time, i_write_en, i_data_in, i_read_en, o_data_out);
-    // end
+    logic [SPAD_WIDTH-1:0] buffer [(2**ADDR_WIDTH)-1:0];
 
     // Read data
     always_ff @(posedge i_clk) begin
@@ -39,7 +37,11 @@ module spad # (
     // Write data
     always_ff @(posedge i_clk) begin
         if (i_write_en) begin
-            buffer[i_write_addr] <= i_data_in;
+            for (int i = 0; i < SPAD_N; i++) begin
+                if (1) begin
+                    buffer[i_write_addr][i*DATA_WIDTH +: DATA_WIDTH] <= i_data_in[i*DATA_WIDTH +: DATA_WIDTH];
+                end
+            end
         end
     end
 

@@ -46,6 +46,7 @@ module top_controller # (
     input logic i_ir_tile_done,
     output logic o_ir_reg_clear,
     output logic o_wr_reg_clear,
+    output logic o_s_reg_clear,
 
     // Dimensions
     output logic [ADDR_WIDTH-1:0] o_o_c,
@@ -53,6 +54,7 @@ module top_controller # (
     // Finished computing
     input logic i_ir_done,
     input logic i_wr_done,
+    input logic i_or_done,
     output logic o_done,
     output logic [2:0] o_state
 );
@@ -92,6 +94,7 @@ module top_controller # (
             o_wr_reg_clear <= 0;
             o_o_c <= 0;
             o_done <= 0;
+            o_s_reg_clear <= 0;
             cntr <= 0;
             state <= IDLE;
         end else if (i_reg_clear) begin
@@ -108,11 +111,13 @@ module top_controller # (
             o_wr_reg_clear <= 0;
             o_o_c <= 0;
             o_done <= 0;
+            o_s_reg_clear <= 0;
             cntr <= 0;
             state <= IDLE;
         end else begin
             case (state)
                 IDLE: begin
+                    o_s_reg_clear <= 0;
                     if (i_ir_done & i_wr_done) begin
                         o_done <= 1;
                     end else if (i_route_en) begin
@@ -172,17 +177,13 @@ module top_controller # (
                 end
 
                 OUTPUT_ROUTING: begin
-                    o_psum_out_en <= 0;
-                    
-                    if (cntr < COLUMNS) begin
-                        o_scan_en <= 1;
-                        o_or_en <= 1;
-                        cntr <= cntr + 1;
-                    end else begin
-                        o_scan_en <= 0;
+                    if (i_or_done) begin
+                        o_psum_out_en <= 0;
+                        o_s_reg_clear <= 1;
                         o_or_en <= 0;
-                        cntr <= 0;
                         state <= IDLE;
+                    end else begin
+                        o_or_en <= 1;
                     end
                 end
             endcase

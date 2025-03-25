@@ -45,7 +45,12 @@ module top #(
     // Output
     output logic [DATA_WIDTH*2-1:0] o_ofmap,
     output logic o_ofmap_valid,
-    output logic o_done
+    output logic o_done,
+
+    // For temp verification
+    output logic [DATA_WIDTH*2-1:0] o_word,
+    output logic o_word_valid,
+    output logic [ADDR_WIDTH-1:0] o_o_x, o_o_y, o_o_c 
 );
     logic spad_w_write_en, spad_i_write_en;
 
@@ -67,9 +72,9 @@ module top #(
     logic ir_pop_en, wr_pop_en;
     logic ir_ready, wr_ready;
     logic ir_context_done, wr_context_done;
-    logic ir_done, wr_done;
+    logic ir_done, wr_done, or_done;
     logic ir_tile_done, wr_tile_done;
-    logic ir_reg_clear, wr_reg_clear;
+    logic ir_reg_clear, wr_reg_clear, s_reg_clear;
     logic pe_en, psum_out_en, scan_en;
     logic output_done;
     logic [ADDR_WIDTH-1:0] o_c;
@@ -104,6 +109,14 @@ module top #(
 
     logic [0:ROWS-1][DATA_WIDTH*2-1:0] ofmap;
 
+    // Input router to Output router
+    logic [ADDR_WIDTH-1:0] x_s, x_e, y_s, y_e;
+    logic xy_valid;
+
+    // Weight router to Output router
+    logic [ADDR_WIDTH-1:0] c_s, c_e;
+    logic c_valid;
+
     top_controller #(
         .ROWS(ROWS),
         .COLUMNS(COLUMNS),
@@ -128,9 +141,11 @@ module top #(
         .i_ir_tile_done(ir_tile_done),
         .o_ir_reg_clear(ir_reg_clear),
         .o_wr_reg_clear(wr_reg_clear),
+        .o_s_reg_clear(s_reg_clear),
         .o_o_c(o_c),
         .i_ir_done(ir_done),
         .i_wr_done(wr_done),
+        .i_or_done(or_done),
         .o_done(o_done)
     );
 
@@ -163,6 +178,11 @@ module top #(
         .o_read_done(), 
         .o_data(ir_ifmap),
         .o_data_valid(ir_data_valid),
+        .o_x_s(x_s),
+        .o_x_e(x_e),
+        .o_y_s(y_s),
+        .o_y_e(y_e),
+        .o_xy_valid(xy_valid),
         .o_ready(ir_ready),
         .o_context_done(ir_context_done),
         .o_done(ir_done),
@@ -197,6 +217,9 @@ module top #(
         .o_read_done(), 
         .o_data(wr_weight),
         .o_data_valid(wr_data_valid),
+        .o_c_s(c_s),
+        .o_c_e(c_e),
+        .o_c_valid(c_valid),
         .o_ready(wr_ready),
         .o_context_done(wr_context_done),
         .o_done(wr_done)
@@ -210,31 +233,50 @@ module top #(
         .i_clk(i_clk),
         .i_nrst(i_nrst),
         .i_mode(i_p_mode),
-        .i_reg_clear(i_reg_clear), 
-        .i_pe_en(pe_en),
+        .i_reg_clear(i_reg_clear || s_reg_clear), 
+        .i_pe_en(wr_data_valid || ir_data_valid),
         .i_psum_out_en(psum_out_en),
-        .i_scan_en(scan_en),
+        .i_scan_en(s_shift_en),
         .i_ifmap(s_ifmap),
-        .i_ifmap_valid(s_ifmap_valid),
         .i_weight(s_weight),
-        .i_weight_valid(s_weight_valid),
-        .o_ofmap(ofmap),
-        .o_ofmap_valid()
+        .o_ofmap(ofmap)
     );
+    logic s_shift_en;
 
     output_router #(
-        .SPAD_ADDR_WIDTH(ADDR_WIDTH),
-        .SPAD_DATA_WIDTH(16),
+        .SPAD_WIDTH(SPAD_DATA_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .SPAD_N(SPAD_N),
+        .ADDR_WIDTH(ADDR_WIDTH),
         .ROWS(ROWS),
-        .DATA_WIDTH(DATA_WIDTH)
+        .COLUMNS(COLUMNS)
     ) or_inst (
         .i_clk(i_clk),
         .i_nrst(i_nrst),
+        .i_reg_clear(i_reg_clear),
         .i_en(or_en),
         .i_ifmap(ofmap),
-        .i_valid({ROWS{1'b1}}),
-        .o_data_out(o_ofmap),
-        .o_valid(o_ofmap_valid),
-        .o_done()
+        .i_valid(),
+        .o_shift_en(s_shift_en),
+        .i_i_size(i_i_size),
+        .i_c_size(i_o_c_size),
+        .i_x_s(x_s),
+        .i_x_e(x_e),
+        .i_y_s(y_s),
+        .i_y_e(y_e),
+        .i_xy_valid(xy_valid),
+        .i_c_s(c_s),
+        .i_c_e(c_e),
+        .i_c_valid(c_valid),
+        .o_addr(),
+        .o_data_out(),
+        .o_write_mask(),
+        .o_valid(),
+        .o_done(or_done),
+        .o_word(o_word),
+        .o_word_valid(o_word_valid),
+        .o_o_x(o_o_x),
+        .o_o_y(o_o_y),
+        .o_o_c(o_o_c)
     );
 endmodule

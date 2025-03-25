@@ -40,6 +40,10 @@ module weight_router #(
     output logic [COUNT-1:0][DATA_WIDTH-1:0] o_data,
     output logic [COUNT-1:0] o_data_valid,
 
+    // Output router signals
+    output logic [ADDR_WIDTH-1:0] o_c_s, o_c_e,
+    output logic o_c_valid,
+
     // Status signals
     output logic o_ready,
     output logic o_context_done, // Done with current set of values
@@ -133,6 +137,9 @@ module weight_router #(
         .i_fifo_route_done(fifo_route_done),
         .i_fifo_empty(fifo_empty),
         .i_fifo_idle(fifo_idle),
+        .o_c_s(o_c_s),
+        .o_c_e(o_c_e),
+        .o_c_valid(o_c_valid),
         .o_done(o_done),
         .o_context_done(o_context_done),
         .o_ready(o_ready)

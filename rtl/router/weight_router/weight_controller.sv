@@ -28,6 +28,10 @@ module wr_controller #(
     output logic [COLUMN-1:0] o_dl_id,
     output logic o_dl_addr_write_en,
 
+    // Output router signals
+    output logic [ADDR_WIDTH-1:0] o_c_s, o_c_e,
+    output logic o_c_valid,
+
     // Control signals
     output logic o_route_en, // enables tile reader and address comparator
     output logic o_pop_en,
@@ -85,6 +89,9 @@ module wr_controller #(
             o_cntr_clear <= 0;
             o_c <= 0;
             c_done <= 0;
+            o_c_s <= 0;
+            o_c_e <= 0;
+            o_c_valid <= 0;
             state <= IDLE;
         end else if (i_reg_clear) begin
             o_route_en <= 0;
@@ -103,6 +110,9 @@ module wr_controller #(
             o_cntr_clear <= 0;
             o_c <= 0;
             c_done <= 0;
+            o_c_s <= 0;
+            o_c_e <= 0;
+            o_c_valid <= 0;
             state <= IDLE;
         end else begin
             case (state)
@@ -132,9 +142,11 @@ module wr_controller #(
                     o_reg_clear <= 0;
                     o_dl_addr_write_en <= 0;
                     if (clear_type) begin
+                        o_c_valid <= 1;
                         state <= TILE_COMPARISON;
                     end else begin
                         state <= ADDRESS_GENERATION;
+                        o_c_s <= o_c;
                     end
                 end
 
@@ -173,6 +185,8 @@ module wr_controller #(
 
                         if (o_dl_id == COLUMN - 1) begin
                             o_dl_id <= 0;
+                            o_c_e <= o_c;
+                            o_c_valid <= 1;
                             state <= TILE_COMPARISON;
                         end else if (c_increment) begin
                             o_dl_id <= o_dl_id + 1;
@@ -184,6 +198,7 @@ module wr_controller #(
                 end
 
                 TILE_COMPARISON: begin
+                    o_c_valid <= 0;
                     // If FIFO is full - reuse weights in Weight FIFO
                     // If FIFO route done - new set of weights
                     if (i_fifo_route_done || i_fifo_full || i_fifo_idle) begin

@@ -32,6 +32,10 @@ module ir_controller #(
     output logic [ROW-1:0] o_dl_id,
     output logic o_dl_addr_write_en,
 
+    // Output router signals
+    output logic [ADDR_WIDTH-1:0] o_x_s, o_x_e, o_y_s, o_y_e,
+    output logic o_xy_valid,
+
     // Control signals
     output logic o_route_en, // enables tile reader and address comparator
     output logic o_pop_en,
@@ -96,6 +100,13 @@ module ir_controller #(
             o_y <= 0;
             o_cntr_clear <= 0;
             xy_done <= 0;
+
+            o_x_s <= 0;
+            o_x_e <= 0;
+            o_y_s <= 0;
+            o_y_e <= 0;
+            o_xy_valid <= 0;
+
             state <= IDLE;
         end else if (i_reg_clear) begin
             o_route_en <= 0;
@@ -117,6 +128,13 @@ module ir_controller #(
             o_y <= 0;
             o_cntr_clear <= 0;
             xy_done <= 0;
+
+            o_x_s <= 0;
+            o_x_e <= 0;
+            o_y_s <= 0;
+            o_y_e <= 0;
+            o_xy_valid <= 0;
+
             state <= IDLE;
         end else begin
             case (state)
@@ -148,10 +166,14 @@ module ir_controller #(
                     o_reg_clear <= 0;
                     o_context_done <= 0;
                     o_tile_done <= 0;
+
                     if (clear_type) begin
+                        o_xy_valid <= 1;
                         state <= TILE_COMPARISON;
                     end else begin
                         state <= ADDRESS_GENERATION;
+                        o_x_s <= o_x;
+                        o_y_s <= o_y;
                     end
                 end
 
@@ -182,12 +204,14 @@ module ir_controller #(
                             o_x <= 0;
                             xy_done <= 1;
                             state <= TILE_COMPARISON;
-                            
                         end
                     end
 
                     if (o_dl_id == ROW - 1) begin
                         o_dl_id <= 0;
+                        o_x_e <= o_x;
+                        o_y_e <= o_y;
+                        o_xy_valid <= 1;
                         state <= TILE_COMPARISON;
                     end else if (xy_increment) begin
                         o_dl_id <= o_dl_id + 1;
@@ -196,6 +220,7 @@ module ir_controller #(
                 end
 
                 TILE_COMPARISON: begin
+                    o_xy_valid <= 0;
                     // If FIFO is full - reuse weights in Weight FIFO
                     // If FIFO route done - new set of weights
                     if (i_fifo_route_done || i_fifo_full || i_fifo_idle) begin

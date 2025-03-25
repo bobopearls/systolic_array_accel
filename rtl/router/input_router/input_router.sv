@@ -41,6 +41,10 @@ module input_router #(
     output logic [COUNT-1:0][DATA_WIDTH-1:0] o_data,
     output logic [COUNT-1:0] o_data_valid,
 
+    // Output router signals
+    output logic [ADDR_WIDTH-1:0] o_x_s, o_x_e, o_y_s, o_y_e,
+    output logic o_xy_valid,
+
     // Status signals
     output logic o_ready,
     output logic o_context_done, // Done with current set of values
@@ -127,6 +131,11 @@ module input_router #(
         .o_dl_end_addr(dl_end_addr),
         .o_dl_id(dl_id),
         .o_dl_addr_write_en(dl_addr_write_en),
+        .o_x_s(o_x_s),
+        .o_x_e(o_x_e),
+        .o_y_s(o_y_s),
+        .o_y_e(o_y_e),
+        .o_xy_valid(o_xy_valid),
         .o_route_en(route_en),
         .o_pop_en(fifo_pop_en),
         .o_reg_clear(reg_clear),
