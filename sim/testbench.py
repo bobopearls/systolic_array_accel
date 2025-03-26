@@ -1,6 +1,5 @@
 import argparse
 import subprocess
-import numpy as np
 import sys
 
 def generate_sequential_array(input_size, precision):
@@ -29,8 +28,13 @@ def convert_nchw_to_nhwc(nchw_array):
     return nhwc_array
 
 def poinwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW):
-    H, W, C = np.array(ifmap).shape
-    C_out, C_in = np.array(kernel).shape
+    H = len(ifmap)          # Number of rows
+    W = len(ifmap[0])       # Number of columns
+    C = len(ifmap[0][0])    # Number of channels
+
+    # For kernel with shape (C_out, C_in)
+    C_out = len(kernel)
+    C_in  = len(kernel[0])
     output_file = "golden_output.txt"
 
     with open(output_file, "w") as f:
@@ -99,6 +103,7 @@ def main():
     parser.add_argument("output_channels", type=int, help="Number of output channels")
     parser.add_argument("stride", type=int, help="Stride value")
     parser.add_argument("precision", type=int, help="Precision value")
+    parser.add_argument("type", type=str, help="Type of testbench to run")
     # parser.add_argument("c_tile", type=int, help="Size of C tile")
     # parser.add_argument("hw_tile", type=int, help="Size of HW tile")
 
@@ -109,6 +114,7 @@ def main():
     output_channels = args.output_channels
     stride = args.stride
     precision = args.precision
+    tb_type = args.type
     c_tile = 5
     hw_tile = 5
 
@@ -134,12 +140,15 @@ def main():
 
     # Run Iverilog testbench
     write_testbench_parameters(input_size, input_channels, output_channels, stride, precision)
-    sim_command = "xargs -a filelist.txt iverilog -g2012 -o dsn"
-    result = subprocess.run(sim_command, shell=True, capture_output=True, text=True)
-    sim_error = result.stderr
-    
 
-    subprocess.run("vvp dsn", shell=True, capture_output=True, text=True)
+    if tb_type == "l":
+        sim_command = "xargs -a filelist.txt iverilog -g2012 -o dsn"
+        subprocess.run(sim_command, shell=True)
+    
+        subprocess.run("vvp dsn", shell=True)
+    else:
+        vcs_cmd = "vcs tb_top.sv ../mapped/top_mapped.v /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/verilog/GF22FDX_SC7P5T_116    CPP_BASE_CSC20L.v /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/verilog/prim.v -sverilog -full64 -debug_pp +neg_tchk -R -l v cs.log"
+        subprocess.run(vcs_cmd, shell=True)
     
     # Check if the difference of output and golden_output
     sim_command = "diff output.txt golden_output.txt"

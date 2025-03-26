@@ -51,6 +51,12 @@ module top #(
     output logic [DATA_WIDTH*2-1:0] o_word,
     output logic o_word_valid,
     output logic [ADDR_WIDTH-1:0] o_o_x, o_o_y, o_o_c 
+
+    input logic [ADDR_WIDTH-1:0] i_or_addr,
+    input logic i_or_read_en,
+    output logic [SPAD_DATA_WIDTH-1:0] o_or_data_out,
+    output logic o_or_data_out_valid
+
 );
     logic spad_w_write_en, spad_i_write_en;
 
@@ -269,10 +275,10 @@ module top #(
         .i_c_s(c_s),
         .i_c_e(c_e),
         .i_c_valid(c_valid),
-        .o_addr(),
-        .o_data_out(),
-        .o_write_mask(),
-        .o_valid(),
+        .o_addr(or_addr),
+        .o_data_out(or_data_out),
+        .o_write_mask(o_write_mask),
+        .o_valid(or_valid),
         .o_done(or_done),
         .o_word(o_word),
         .o_word_valid(o_word_valid),
@@ -280,4 +286,26 @@ module top #(
         .o_o_y(o_o_y),
         .o_o_c(o_o_c)
     );
+
+    logic [ADDR_WIDTH-1:0] or_addr;
+    logic [SPAD_DATA_WIDTH-1:0] or_data_out;;
+    logic [SPAD_N-1:0] or_write_mask;
+    logic or_valid;;
+
+    spad #(
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .DATA_WIDTH(SPAD_DATA_WIDTH)
+    ) or_spad (
+        .i_clk(i_clk),
+        .i_nrst(i_nrst),
+        .i_write_en(or_valid),
+        .i_read_en(i_or_read_en),
+        .i_data_in(or_data_out),
+        .i_write_mask(or_write_mask),
+        .i_write_addr(or_addr),
+        .i_read_addr(i_or_addr),
+        .o_data_out(o_or_data_out),
+        .o_data_out_valid(o_or_data_out_valid)
+    );
+
 endmodule

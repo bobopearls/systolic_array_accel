@@ -49,13 +49,14 @@ components = [
     ("Weight SPAD", "wr_inst/wr_spad"),
     ("Weight Router", "wr_inst"),
     ("Output Router", "or_inst"),
+    ("Output SPAD", "or_spad"),
     ("Systolic Array", "systolic_array_inst"),
 ]
 
-txt_filename = f"{spad_data_width}_{rows}.txt"
+formatted_date = datetime.now().strftime("%a %b %e %H:%M:%S %Y")
+txt_filename = f"{spad_data_width}_{rows}_{formatted_date}.txt"
 spad_area = 0
 spad_percentage = 0
-formatted_date = datetime.now().strftime("%a %b %e %H:%M:%S %Y")
 
 # Write data to text file
 with open(txt_filename, mode="w", newline="") as file:
