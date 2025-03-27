@@ -35,6 +35,7 @@ module ir_controller #(
     // Output router signals
     output logic [ADDR_WIDTH-1:0] o_x_s, o_x_e, o_y_s, o_y_e,
     output logic o_xy_valid,
+    output logic [ADDR_WIDTH-1:0] o_xy_length,
 
     // Control signals
     output logic o_route_en, // enables tile reader and address comparator
@@ -106,6 +107,7 @@ module ir_controller #(
             o_y_s <= 0;
             o_y_e <= 0;
             o_xy_valid <= 0;
+            o_xy_length <= 0;
 
             state <= IDLE;
         end else if (i_reg_clear) begin
@@ -134,6 +136,7 @@ module ir_controller #(
             o_y_s <= 0;
             o_y_e <= 0;
             o_xy_valid <= 0;
+            o_xy_length <= 0;
 
             state <= IDLE;
         end else begin
@@ -200,11 +203,13 @@ module ir_controller #(
                         if (x_increment) begin
                             o_y <= 0;
                             o_x <= o_x + i_stride;
+                            o_y_e <= o_y;
                         end else begin
                             o_x <= 0;
                             xy_done <= 1;
                             o_x_e <= o_x;
                             o_y_e <= o_y;
+                            o_xy_length <= o_dl_id;
                             o_xy_valid <= 1;
                             state <= TILE_COMPARISON;
                         end
@@ -213,7 +218,10 @@ module ir_controller #(
                     if (o_dl_id == ROW - 1) begin
                         o_dl_id <= 0;
                         o_x_e <= o_x;
-                        o_y_e <= o_y;
+                        if (o_y > o_y_e) begin
+                            o_y_e <= o_y;
+                        end
+                        o_xy_length <= o_dl_id;
                         o_xy_valid <= 1;
                         state <= TILE_COMPARISON;
                     end else if (xy_increment) begin
@@ -224,6 +232,10 @@ module ir_controller #(
 
                 TILE_COMPARISON: begin
                     o_xy_valid <= 0;
+                    o_y_s <= 0;
+                    o_x_s <= 0;
+                    o_y_e <= 0;
+                    o_x_e <= 0;
                     // If FIFO is full - reuse weights in Weight FIFO
                     // If FIFO route done - new set of weights
                     if (i_fifo_route_done || i_fifo_full || i_fifo_idle) begin

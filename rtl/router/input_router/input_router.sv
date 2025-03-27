@@ -44,6 +44,7 @@ module input_router #(
     // Output router signals
     output logic [ADDR_WIDTH-1:0] o_x_s, o_x_e, o_y_s, o_y_e,
     output logic o_xy_valid,
+    output logic [ADDR_WIDTH-1:0] o_xy_length,
 
     // Status signals
     output logic o_ready,
@@ -138,6 +139,7 @@ module input_router #(
         .o_y_s(o_y_s),
         .o_y_e(o_y_e),
         .o_xy_valid(o_xy_valid),
+        .o_xy_length(o_xy_length),
         .o_route_en(route_en),
         .o_pop_en(fifo_pop_en),
         .o_reg_clear(reg_clear),

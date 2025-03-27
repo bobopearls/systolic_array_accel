@@ -35,6 +35,7 @@ module output_router #(
     input logic [ADDR_WIDTH-1:0] i_x_e,
     input logic [ADDR_WIDTH-1:0] i_y_s,
     input logic [ADDR_WIDTH-1:0] i_y_e,
+    input logic [ADDR_WIDTH-1:0] i_xy_length,
     input logic i_xy_valid,
 
     // from weight router
@@ -59,6 +60,7 @@ module output_router #(
     logic [ADDR_WIDTH-1:0] o_x, o_y, o_c;
     logic [ADDR_WIDTH-1:0] o_x_lim, o_y_lim, o_c_lim;
     logic [ADDR_WIDTH-1:0] prev_o_x, prev_o_y;
+    logic [ADDR_WIDTH-1:0] xy_count;
     logic [2:0] state;
     logic context_done, column_done;
 
@@ -78,6 +80,7 @@ module output_router #(
     // Do quantization
     always_ff @(posedge i_clk or negedge i_nrst) begin
         if(~i_nrst) begin
+            xy_count <= 0;
             ifmap <= 0;
             row_id <= 0;
             o_x <= 0;
@@ -104,6 +107,7 @@ module output_router #(
             o_o_c <= 0;
             state <= IDLE;
         end else if (i_reg_clear) begin
+            xy_count <= 0;
             ifmap <= 0;
             row_id <= 0;
             o_x <= 0;
@@ -215,6 +219,13 @@ module output_router #(
                         end
                     end else begin
                         o_y <= o_y + 1;
+                    end
+
+                    if (xy_count == i_xy_length) begin
+                        xy_count <= 0;
+                        column_done <= 1;
+                    end else begin
+                        xy_count <= xy_count + 1;
                     end
                     state <= ADDRESS_GENERATION;
                 end

@@ -128,7 +128,9 @@ module top #(
     logic [ADDR_WIDTH-1:0] or_addr;
     logic [SPAD_DATA_WIDTH-1:0] or_data_out;;
     logic [SPAD_N-1:0] or_write_mask;
-    logic or_valid;;
+    logic or_valid;
+
+    logic [ADDR_WIDTH-1:0] xy_length;
 
     top_controller #(
         .ROWS(ROWS),
@@ -196,6 +198,7 @@ module top #(
         .o_y_s(y_s),
         .o_y_e(y_e),
         .o_xy_valid(xy_valid),
+        .o_xy_length(xy_length),
         .o_ready(ir_ready),
         .o_context_done(ir_context_done),
         .o_done(ir_done),
@@ -277,6 +280,7 @@ module top #(
         .i_y_s(y_s),
         .i_y_e(y_e),
         .i_xy_valid(xy_valid),
+        .i_xy_length(xy_length),
         .i_c_s(c_s),
         .i_c_e(c_e),
         .i_c_valid(c_valid),
