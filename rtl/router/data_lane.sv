@@ -5,7 +5,8 @@ module data_lane #(
     parameter int SPAD_N = SPAD_DATA_WIDTH / DATA_WIDTH,
     parameter int MISO_DEPTH = 32,
     parameter int MPP_DEPTH = 9,
-    parameter int INDEX = 0
+    parameter int INDEX = 0,
+    parameter int TYPE = 0
 ) (
     input logic i_clk,
     input logic i_nrst,

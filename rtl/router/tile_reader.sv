@@ -1,6 +1,6 @@
 module tile_reader #(
     parameter int ADDR_WIDTH = 8,
-    parameter int DATA_WIDTH = 8
+    parameter int DATA_WIDTH = 64
 ) (
     input logic i_clk,
     input logic i_nrst, 

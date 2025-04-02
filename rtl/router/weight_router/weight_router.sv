@@ -111,7 +111,8 @@ module weight_router #(
 
     wr_controller #(
         .COLUMN(COUNT),
-        .ADDR_WIDTH(ADDR_WIDTH)
+        .ADDR_WIDTH(ADDR_WIDTH),
+        .SPAD_N(SPAD_N)
     ) wr_controller (
         .i_clk(i_clk),
         .i_nrst(i_nrst),

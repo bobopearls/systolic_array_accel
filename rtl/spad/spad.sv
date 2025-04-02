@@ -37,6 +37,7 @@ module spad # (
     // Write data
     always_ff @(posedge i_clk) begin
         if (i_write_en) begin
+            // buffer[i_write_addr] <= i_data_in;
             for (int i = 0; i < SPAD_N; i++) begin
                 if (1) begin
                     buffer[i_write_addr][i*DATA_WIDTH +: DATA_WIDTH] <= i_data_in[i*DATA_WIDTH +: DATA_WIDTH];
