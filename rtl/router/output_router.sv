@@ -43,6 +43,10 @@ module output_router #(
     input logic [ADDR_WIDTH-1:0] i_c_e,
     input logic i_c_valid,
 
+    // quant
+    input logic [0:ROWS-1][  DATA_WIDTH-1:0] i_quant_sh,
+    input logic [0:ROWS-1][2*DATA_WIDTH-1:0] i_quant_m0,
+
     // Write to SPAD
     output logic [ADDR_WIDTH-1:0] o_addr,
     output logic [SPAD_WIDTH-1:0] o_data_out,
@@ -70,6 +74,24 @@ module output_router #(
     logic [SPAD_WIDTH-1:0] word_data;
     logic [SPAD_N-1:0] word_mask;
 
+    logic                              quant_en;
+    logic                              quant_store_reg;
+    logic [0:ROWS-1][  DATA_WIDTH-1:0] quant_oact;
+
+    top_quant #(    
+        .ROWS(ROWS),
+        .DATA_WIDTH(DATA_WIDTH)
+    ) uut (
+        .i_clk(i_clk),
+        .i_nrst(i_nrst),
+        .i_en(quant_en),
+        .i_store_reg(quant_store_reg),
+        .i_sh(i_quant_sh),
+        .i_m0(i_quant_m0),
+        .i_act(i_ifmap),
+        .o_act(quant_oact)
+    );
+
     parameter int IDLE = 0;
     parameter int READ_IFMAP = 1;
     parameter int ADDRESS_GENERATION = 2;
@@ -80,6 +102,9 @@ module output_router #(
     // Do quantization
     always_ff @(posedge i_clk or negedge i_nrst) begin
         if(~i_nrst) begin
+            quant_en <= 0;
+            quant_store_reg <= 0;
+            
             xy_count <= 0;
             ifmap <= 0;
             row_id <= 0;
@@ -107,6 +132,9 @@ module output_router #(
             o_o_c <= 0;
             state <= IDLE;
         end else if (i_reg_clear) begin
+            quant_en <= 0;
+            quant_store_reg <= 0;
+
             xy_count <= 0;
             ifmap <= 0;
             row_id <= 0;
@@ -136,6 +164,9 @@ module output_router #(
         end else begin
             case(state)
                 IDLE: begin
+                    quant_en <= 0;
+                    quant_store_reg <= 0;
+
                     // o_done <= 0;
                     context_done <= 0;
                     column_done <= 0;
@@ -162,7 +193,10 @@ module output_router #(
                 end
 
                 READ_IFMAP: begin
-                    ifmap <= i_ifmap;
+                    quant_en <= 1;
+                    quant_store_reg <= 1;
+
+                    ifmap <= quant_oact;
                     
                     row_id <= 0;
                     o_x <= prev_o_x;
