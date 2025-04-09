@@ -6,10 +6,10 @@ data_width = 8
 spad_data_width = 64
 spad_n = spad_data_width // data_width
 addr_width = 8
-rows = 4
-columns = 4
-miso_depth = 4
-mpp_depth = 16
+rows = 10
+columns = 10
+miso_depth = 16
+mpp_depth = 9
 
 header = f"""`define DATA_WIDTH {data_width}
 `define SPAD_DATA_WIDTH {spad_data_width}

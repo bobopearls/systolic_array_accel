@@ -172,17 +172,29 @@ def main():
 
     #print(input_array)
 
-    kernel = generate_sequential_array(channels, precision)
+    # kernel = generate_sequential_array(channels, precision)
 
-    # for _ in range(C_out):
-    #     kernel.append([j for j in range(C_in)])
-    nhwc_array = convert_nchw_to_nhwc(input_array)
+    kernel = []
+    for _ in range(C_out):
+        kernel.append(generate_sequential_array(C_in, precision))
 
-    array_to_file(flatten_3d_array(nhwc_array), 8, "ifmap.txt")
-    array_to_file(flatten_2d_array(kernel), 8, "kernel.txt")
+
+
+    feature_map = np.random.randint(0, 10, size=(C_in, input_size, input_size))
+
+# Create a random 1x1 kernel with integer values (0-9) in NCHW format
+    kernel = np.random.randint(0, 10, size=(C_out, C_in, 1, 1))
+
+    nhwc_input = convert_nchw_to_nhwc(feature_map)
+    nhwc_kernel = convert_nchw_to_nhwc(kernel)
+    
+    print(flatten_3d_array(nhwc_kernel))
+
+    array_to_file(flatten_3d_array(nhwc_input), 8, "p_ifmap.txt")
+    array_to_file(flatten_3d_array(nhwc_kernel), 8, "p_kernel.txt")
     # output, output_size = convolve_2d(input_array[0], kernel, stride)
 
-    
+    return
 
     print(f'Input Size: {input_size}\nNumber of Channels: {channels}\nOutput Size: {output_size}\nStride: {stride}\nPrecision: {precision}')
     if (input_size <= 10):

@@ -1,0 +1,6 @@
+`define INPUT_SIZE 6
+`define INPUT_CHANNELS 64
+`define OUTPUT_CHANNELS 128
+`define OUTPUT_SIZE 6
+`define STRIDE 1
+`define PRECISION 0

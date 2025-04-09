@@ -49,7 +49,8 @@ def poinwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW):
                         result = 0
                         for i in range(len(ifmap[h][w])):
                             result += ifmap[h][w][i] * kernel[c][i]
-                        
+
+                        # f.write(f"{h} {w} {c} {result}\n")
                         f.write(f"{result}\n")
 
 def flatten_3d_array(arr):
@@ -95,6 +96,19 @@ def write_testbench_parameters(input_size, input_channels, output_channels, stri
     with open("sim/tb_top.svh", "w") as file:
         file.write(header)
 
+def write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth):
+    header = f"""
+    `define DATA_WIDTH {8}
+    `define SPAD_DATA_WIDTH {spad_data_width}
+    `define SPAD_N {spad_data_width // 8}
+    `define ADDR_WIDTH {addr_width}
+    `define ROWS {rows}
+    `define COLUMNS {cols}
+    `define MISO_DEPTH {miso_depth}
+    `define MPP_DEPTH {mpp_depth}"""
+
+    with open("rtl/global.svh", "w") as file:
+        file.write(header)
 
 def main():
     parser = argparse.ArgumentParser(description="Process input parameters.")
@@ -115,8 +129,8 @@ def main():
     stride = args.stride
     precision = args.precision
     tb_type = args.type
-    c_tile = 5
-    hw_tile = 5
+    c_tile = 10
+    hw_tile = 10
 
     ifmap = []
     for _ in range(input_channels):
@@ -132,14 +146,32 @@ def main():
     k_flat = flatten_2d_array(kernel)
     i_flat = flatten_3d_array(ifmap)
 
-    sram_hex_to_mem(k_flat, 8, 'kernel.mem')
-    sram_hex_to_mem(i_flat, 8, 'ifmap.mem')
 
     # Write golden output
     poinwise_convolution_nhwc(ifmap, kernel, c_tile, hw_tile)
 
+    # Write system parameters
+    data_width = 8
+    spad_data_width = 128
+    spad_n = spad_data_width // 8
+    addr_width = 16
+    rows = c_tile
+    cols = c_tile
+    miso_depth = 16
+    mpp_depth = 9
+    write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
+    print(f"System parameters written to rtl/global.svh")
+    print("-" * 60)
+    print(f"Data width: {data_width}, SPAD data width: {spad_data_width}, Address width: {addr_width}\nRows: {rows}, Columns: {cols}, MISO depth: {miso_depth}, MPP depth: {mpp_depth}")
+    print("-" * 60)
+    print(f"Testbench parameters written to sim/tb_top.svh")
+
     # Run Iverilog testbench
     write_testbench_parameters(input_size, input_channels, output_channels, stride, precision)
+
+
+    sram_hex_to_mem(k_flat, spad_n, 'kernel.mem')
+    sram_hex_to_mem(i_flat, spad_n, 'ifmap.mem')
 
     if tb_type == "l":
         sim_command = "xargs -a filelist.txt iverilog -g2012 -o dsn"
@@ -153,21 +185,30 @@ def main():
     # Check if the difference of output and golden_output
     sim_command = "diff output.txt golden_output.txt"
     # subprocess.run(sim_command, shell=True)
-
+    print(f"System prope")
     try:
         with open("output.txt", "r") as o_file, open("golden_output.txt", "r") as go_file:
-            print("Verifying output against golden output...")
+            print("\nVerifying output against golden output...")
+            print("-" * 60)
             print(f"Input Size: {input_size}, Output Size: {input_size}\nInput Channels: {input_channels}, Output Channel: {output_channels}\nStride: {stride}, Precision Mode: {precision}")
-
+            print("-" * 60)
+            match = 0
+            total = 0
+            error = 0
             for result_line, golden_line in zip(o_file, go_file):
                 result = result_line.strip() if result_line.strip() else None
                 golden = golden_line.strip() if golden_line.strip() else None
 
                 if result == golden:
-                    print(f"OUTPUT MATCH {result} (result) == {golden} (golden)")
+                    match += 1
+                    # print(f"OUTPUT MATCH {result} (result) == {golden} (golden)")
                 else:
-                    print(f"OUTPUT MISMATCH {result} (result) != {golden} (golden)")
+                    error += 1
+                    # print(f"OUTPUT MISMATCH {result} (result) != {golden} (golden)")
 
+                total += 1
+
+            print(f"match rate: {match}/{total} ({(match / total) * 100:.2f}%)")
             # Check if one file is longer than the other
             extra_output = o_file.readline().strip()
             extra_golden = go_file.readline().strip()

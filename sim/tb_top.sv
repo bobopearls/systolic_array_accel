@@ -76,7 +76,7 @@ module tb_top;
         // $vcdpluson;
         // $sdf_annotate("../mapped/top_mapped.sdf", dut);
         // // Prime Time        
-        // $dumpfile("tb_top.dump");
+        // $dumpfile("top.dump");
         // $dumpvars(0, tb_top);
     end
 
@@ -102,15 +102,6 @@ module tb_top;
         o_size = `OUTPUT_SIZE;
         stride = `STRIDE;
         p_mode = `PRECISION;
-
-        // // Retrieve command-line arguments
-        // if (!$value$plusargs("i_i_size=%d", i_size)) i_size = 5;
-        // if (!$value$plusargs("i_c_size=%d", i_c_size)) i_c_size = 5;
-        // if (!$value$plusargs("o_c_size=%d", o_c_size)) o_c_size = 5;
-        // if (!$value$plusargs("i_c=%d", i_c)) i_c = 0;
-        // if (!$value$plusargs("i_o_size=%d", o_size)) o_size = 5;
-        // if (!$value$plusargs("i_stride=%d", stride)) stride = 1;
-        // if (!$value$plusargs("i_p_mode=%d", p_mode)) p_mode = 2'b00;
 
         #10;
         i_nrst = 1;
@@ -173,6 +164,8 @@ module tb_top;
         @(posedge i_clk); // wait for one clock cycle
         i_route_en = 1;
 
+        wait (o_done == 1); // wait for i_route_en to be high
+        $finish;
         while(i_route_en == 1) begin // while SIG = "1"
             @(posedge i_clk); // when clock signal gets high
             counter++; // increase counter by 1
@@ -182,6 +175,7 @@ module tb_top;
     // Monitor and write to output file whenever o_ofmap_valid is high
     always @(posedge i_clk) begin
         if (o_word_valid) begin
+            // $fwrite(output_file, "%d %d %d %d\n",o_o_x,o_o_y,o_o_c,o_word);
             $fwrite(output_file, "%d\n",o_word);
         end
     end
@@ -191,7 +185,7 @@ module tb_top;
         if (o_done) begin
             $display("Simulation completed: o_done asserted.");
             $display("Total cycles: %d", counter);
-            // $fclose(output_file);
+            $fclose(output_file);
             $finish;
         end
     end

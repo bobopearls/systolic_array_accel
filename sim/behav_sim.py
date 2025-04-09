@@ -160,29 +160,41 @@ def main():
     stride = args.stride
     precision = args.precision
 
-    input_array = generate_random_3d_array(input_size, channels, precision)
+    # input_array = generate_random_3d_array(input_size, channels, precision)
 
-    kernel = generate_random_2d_array(3, precision)
+    input_array = []
 
-    output, output_size = convolve_2d(input_array[0], kernel, stride)
+    for _ in range(channels):
+        input_array.append(generate_sequential_array(input_size, precision))
 
-    nhwc_array = convert_nchw_to_nhwc(input_array)
+    kernel = []
+    for _ in range(channels):
+        kernel.append(generate_sequential_array(3, precision))
 
-    print(f'Input Size: {input_size}\nNumber of Channels: {channels}\nOutput Size: {output_size}\nStride: {stride}\nPrecision: {precision}')
-    if (input_size <= 10):
-        print("---------------------------------------------------------------")
-        print("Input:")
-        print(input_array)
-        print("Channel 0:")
-        print(input_array[0])
-        print("Kernel:")
-        print(kernel)
-        print("Output:")
-        print(output)
+    print(kernel)
+
+    #output, output_size = convolve_2d(input_array[0], kernel, stride)
+
+    nhwc_input = convert_nchw_to_nhwc(input_array)
+    nhwc_kernel = convert_nchw_to_nhwc(kernel)
+
+    # print(f'Input Size: {input_size}\nNumber of Channels: {channels}\nOutput Size: {output_size}\nStride: {stride}\nPrecision: {precision}')
+    # if (input_size <= 10):
+    #     print("---------------------------------------------------------------")
+    #     print("Input:")
+    #     print(input_array)
+    #     print("Channel 0:")
+    #     print(input_array[0])
+    #     print("Kernel:")
+    #     print(kernel)
+    #     print("Output:")
+        # print(output)
 
     # # Write input, kernel, and output arrays to files
-    array_to_file(flatten_3d_array(nhwc_array), 8, "ifmap.txt")
-    array_to_file(flatten_2d_array(kernel), 8, "kernel.txt")
+    array_to_file(flatten_3d_array(nhwc_input), 8, "ifmap.txt")
+    array_to_file(flatten_3d_array(nhwc_kernel), 8, "kernel.txt")
+
+    return 
     output_to_file(format_output(flatten_2d_array(output)), 1, "golden_output.txt")
 
     sim_command = "xargs -a filelist.txt iverilog -g2012 -o dsn"
