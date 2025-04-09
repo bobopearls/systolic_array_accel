@@ -99,7 +99,7 @@ module p_data_selector #(
             end
 
             t_data_hit = data_hit >> lower_bit;
-            f_data = i_spad_data >> lower_bit * 8;
+            f_data = i_spad_data >> lower_bit * DATA_WIDTH;
 
             for (int i = 0; i < SPAD_N; i = i + 1) begin
                 if (t_data_hit[i] & ((slots + i) < MISO_DEPTH ) & ~i_miso_full) begin
