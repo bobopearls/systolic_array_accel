@@ -114,7 +114,7 @@ module tb_top;
         end
 
         // Write to weight SRAM
-        file = $fopen("kernel.mem", "r");
+        file = $fopen("weights.txt", "r");
         if (file == 0) begin
             $display("Error opening file 1");
             $finish;
@@ -139,7 +139,7 @@ module tb_top;
         $fclose(file);
 
         // Write to input SRAM
-        file = $fopen("ifmap.mem", "r");
+        file = $fopen("inputs.txt", "r");
         if (file == 0) begin
             $display("Error opening file 2");
             $finish;
