@@ -121,7 +121,7 @@ module top_controller # (
             case (state)
                 IDLE: begin
                     o_s_reg_clear <= 0;
-                    if (i_ir_done & i_wr_done) begin
+                    if (i_wr_done) begin
                         o_done <= 1;
                     end else if (i_route_en) begin
                         if (i_ir_done) begin
