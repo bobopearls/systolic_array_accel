@@ -18,7 +18,7 @@ def write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth,
     `define MISO_DEPTH {miso_depth}
     `define MPP_DEPTH {mpp_depth}"""
 
-    with open("rtl/global.svh", "w") as file:
+    with open("../rtl/global.svh", "w") as file:
         file.write(header)
 
 
@@ -90,7 +90,7 @@ def generate_simv_command(
 
 
 def main():
-    csv_path = "sim/vww/metadata.csv"
+    csv_path = "vww/metadata.csv"
 
     for d in dimensions:
         for spad in spad_sizing:
@@ -118,8 +118,8 @@ def main():
                     type = row['Type']
                     
                     if type == "P":
-                        i_filename = f"sim/vww/{spad_data_width}_bits/inputs/{identifier}.txt"
-                        w_filename = f"sim/vww/{spad_data_width}_bits/weights/{identifier}.txt"
+                        i_filename = f"vww/{spad_data_width}_bits/inputs/{identifier}.txt"
+                        w_filename = f"vww/{spad_data_width}_bits/weights/{identifier}.txt"
                         # o_filename = f"{d}_{d}_{d}_{spad_data_width}_output.txt"
 
                         for precision in [2]:

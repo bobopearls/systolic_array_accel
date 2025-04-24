@@ -1,4 +1,4 @@
-`include "rtl/global.svh"
+`include "../rtl/global.svh"
 
 module top #(
     // ---- Constants ----
