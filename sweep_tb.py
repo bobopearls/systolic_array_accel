@@ -74,7 +74,7 @@ def generate_simv_command(
         p_mode = 2
 
     cmd = (
-        f"./simv"
+        f"./simv "
         f"+INPUT_SIZE={input_size} "
         f"+INPUT_CHANNELS={input_channels} "
         f"+OUTPUT_CHANNELS={output_channels} "
@@ -102,7 +102,7 @@ def main():
 
             write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
             # Synthesize design
-            sim_command = "vcs -f filelist.txt -full64 -sverilog -debug_pp"
+            sim_command = "vcs -f ../filelist.txt -full64 -sverilog -debug_pp"
             subprocess.run(sim_command, shell=True)
             print(f"Compilation completed for {d}x{d}x{d} with SPAD data width {spad_data_width}\n")
             
