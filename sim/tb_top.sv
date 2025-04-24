@@ -1,4 +1,4 @@
-`timescale 1ns / 1ps
+// `timescale 1ns / 1ps
 `include "rtl/global.svh"
 
 module tb_top;
@@ -7,6 +7,7 @@ module tb_top;
     localparam int DATA_WIDTH = `DATA_WIDTH;
 
     int counter = 0; // counter initialization
+    int no_or_counter = 0;
 
     // File-related variables
     integer file, r, output_file;
@@ -14,7 +15,7 @@ module tb_top;
     int input_size, input_channels, output_channels, output_size, stride, precision, layer_identifier;
 
 
-    string input_file, weight_file, cycle_file;
+    string input_file, weight_file, cycle_file, out_file;
 
     logic [SRAM_DATA_WIDTH-1:0] mem_data;
 
@@ -74,12 +75,12 @@ module tb_top;
 
     initial begin
         // Iverilog
-        $dumpfile("tb.vcd");
-        $dumpvars(0, tb_top);
+        // $dumpfile("tb.vcd");
+        // $dumpvars(0, tb_top);
 
         // VCS 
-        // $vcdplusfile("tb_top.vpd");
-        // $vcdpluson;
+        $vcdplusfile("tb_top.vpd");
+        $vcdpluson;
         // $sdf_annotate("../mapped/top_mapped.sdf", dut);
         // // Prime Time        
         // $dumpfile("top.dump");
@@ -114,6 +115,7 @@ module tb_top;
         if (!$value$plusargs("INPUT_FILE=%s", input_file)) input_file = "default_input.txt";
         if (!$value$plusargs("WEIGHT_FILE=%s", weight_file)) weight_file = "default_weight.txt";
         if (!$value$plusargs("CYCLE_FILE=%s", cycle_file)) cycle_file = "default_cycle.txt";
+        if (!$value$plusargs("OUTPUT_FILE=%s", out_file)) out_file = "default_output.txt";
 
         i_size = input_size;
         i_c_size = input_channels;
@@ -126,12 +128,12 @@ module tb_top;
         #10;
         i_nrst = 1;
 
-        // Open output file
-        output_file = $fopen("sim/output.txt", "w");
-        if (output_file == 0) begin
-            $display("Error opening output file!");
-            $finish;
-        end
+        // // Open output file
+        // output_file = $fopen(out_file, "w");
+        // if (output_file == 0) begin
+        //     $display("Error opening output file!");
+        //     $finish;
+        // end
 
         cycle_stats = $fopen(cycle_file, "a");
         if (cycle_stats == 0) begin
@@ -195,26 +197,30 @@ module tb_top;
         while(i_route_en == 1) begin // while SIG = "1"
             @(posedge i_clk); // when clock signal gets high
             counter++; // increase counter by 1
+
+            if (o_or_en == 0) begin
+                no_or_counter++;
+            end
         end
     end
 
-    // Monitor and write to output file whenever o_ofmap_valid is high
-    always @(posedge i_clk) begin
-        if (o_word_valid) begin
-            // $fwrite(output_file, "%d %d %d %d\n",o_o_x,o_o_y,o_o_c,o_word);
-            $fwrite(output_file, "%d\n",o_word);
-        end
-    end
+    // // Monitor and write to output file whenever o_ofmap_valid is high
+    // always @(posedge i_clk) begin
+    //     if (o_word_valid) begin
+    //         // $fwrite(output_file, "%d %d %d %d\n",o_o_x,o_o_y,o_o_c,o_word);
+    //         $fwrite(output_file, "%d\n",o_word);
+    //     end
+    // end
 
     // // Terminate simulation when o_done is high
     always @(posedge i_clk) begin
         if (o_done) begin
             $display("Simulation completed: o_done asserted.");
             $display("Total cycles: %d", counter);
-            $fwrite(cycle_stats, "%0d, %0d\n", layer_identifier, counter);
+            $fwrite(cycle_stats, "%0d, %0d, %0d\n", layer_identifier, counter, no_or_counter);
             // $fwrite(cycle_stats, "%0d, %0d, %0d, %0d, %0d, %0d, %0d\n", `LAYER_IDENTIFIER, `SPAD_N, `ADDR_WIDTH, `ROWS, `COLUMNS, `MISO_DEPTH, counter);
             $fclose(cycle_stats);
-            $fclose(output_file);
+            // $fclose(output_file);
             $finish;
         end
     end
