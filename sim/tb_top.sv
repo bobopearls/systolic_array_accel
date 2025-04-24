@@ -76,12 +76,12 @@ module tb_top;
 
     initial begin
         // Iverilog
-        $dumpfile("tb.vcd");
-        $dumpvars(0, tb_top);
+        // $dumpfile("tb.vcd");
+        // $dumpvars(0, tb_top);
 
         // VCS 
-        // $vcdplusfile("tb_top.vpd");
-        // $vcdpluson;
+        $vcdplusfile("tb_top.vpd");
+        $vcdpluson;
         // $sdf_annotate("../mapped/top_mapped.sdf", dut);
         // // Prime Time        
         // $dumpfile("top.dump");
@@ -216,37 +216,16 @@ module tb_top;
         end
     end
 
-    always @(posedge i_clk) begin
-        if (re_route_flag & i_reg_clear & o_done) begin
-            i_c <= i_c + 1;
-            i_reg_clear <= 0;
-            i_route_en <= 1;
-        end
-    end
-
-    // Add this to turn it off immediately in the next clock
-    always @(posedge i_clk) begin
-        if (re_route_flag) begin
-            re_route_flag <= 0;
-        end
-    end
-
     // // Terminate simulation when o_done is high
     always @(posedge i_clk) begin
         if (o_done) begin
-            $display("Channel %0d simulation completed: o_done asserted.", i_c);
-            $display("Total cycles so far: %d", counter);
+            $display("Simulation completed: o_done asserted.");
+            $display("Total cycles: %d", counter);
 
-            if (i_c < i_c_size - 1) begin
-                i_route_en <= 0;
-                i_reg_clear <= 1;
-                re_route_flag <= 1;  // Set flag to re-enable routing in next cycle
-            end else begin
-                $fwrite(cycle_stats, "%0d, %0d, %0d, %0d\n", layer_identifier, counter, no_or_counter, write_spad_counter);
-                $fclose(cycle_stats);
-                $fclose(output_file);
-                $finish;
-            end
+            $fwrite(cycle_stats, "%0d, %0d, %0d, %0d\n", layer_identifier, counter, no_or_counter, write_spad_counter);
+            $fclose(cycle_stats);
+            $fclose(output_file);
+            $finish;
         end
     end
 endmodule
