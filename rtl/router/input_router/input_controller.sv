@@ -207,19 +207,23 @@ module ir_controller #(
                     if (i_conv_mode) begin
                         // Dwise
                         o_dl_sw_addr <= addr;
+                        if (!first_row) begin
+                            first_row <= 1;
+                            tile_addr <= ((i_start_addr * SPAD_N) + (o_x) * i_i_size * i_i_c_size + (o_y) * i_i_c_size + i_i_c) >> $clog2(SPAD_N);
+                        end
                     end else begin
                         // Pwise
                         o_dl_end_addr <= (i_start_addr * SPAD_N) + o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
                         prev_addr <= o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
                         o_dl_start_addr <= prev_addr + (i_start_addr * SPAD_N);
+
+                        if (!first_row) begin
+                            first_row <= 1;
+                            tile_addr <= (prev_addr + (i_start_addr * SPAD_N)) >> $clog2(SPAD_N);
+                        end
                     end
                     o_dl_addr_write_en <= 1;
                     state <= XY_INCREMENT;
-
-                    if (!first_row) begin
-                        first_row <= 1;
-                        tile_addr <= (prev_addr + (i_start_addr * SPAD_N)) >> $clog2(SPAD_N);
-                    end
                 end
 
                 // This maps the Height and Width of ifmap to Systolic Array

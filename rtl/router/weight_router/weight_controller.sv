@@ -170,19 +170,24 @@ module wr_controller #(
                     if(i_conv_mode) begin
                         // Dwise
                         o_dl_sw_addr <= addr;
+                        if (!first_col) begin
+                            first_col <= 1;
+                            o_tile_addr <= i_start_addr;
+                        end
                     end else begin
                         // Pwise
                         o_dl_end_addr <= (i_start_addr * SPAD_N) + (o_c + 1) * i_i_c_size;
                         o_dl_start_addr <= (i_start_addr * SPAD_N) + o_c * i_i_c_size;
+                        if (!first_col) begin
+                            first_col <= 1;
+                            o_tile_addr <= ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N);
+                        end
                     end
 
                     o_dl_addr_write_en <= 1;
                     state <= C_INCREMENT;
 
-                    if (!first_col) begin
-                        first_col <= 1;
-                        o_tile_addr <= ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N);
-                    end
+
                 end
 
                 C_INCREMENT: begin
@@ -261,7 +266,7 @@ module wr_controller #(
                 always_comb begin
                     if (i_conv_mode) begin
                         // o_c, i_i_c, i_i_c_size
-                        addr[addr_idx] = (i_start_addr * SPAD_N) + (addr_idx * KERNEL_SIZE) + i_i_c;
+                        addr[addr_idx] = (i_start_addr * SPAD_N) + (x * KERNEL_SIZE) * i_i_c_size + y * i_i_c_size + i_i_c;
                     end else begin
                         addr[addr_idx] = '0;
                     end

@@ -56,6 +56,7 @@ def write_testbench_parameters(input_size,
 
 
 def generate_simv_command(
+    conv_mode,
     input_size,
     input_channels,
     output_channels,
@@ -65,7 +66,8 @@ def generate_simv_command(
     layer_identifier,
     input_file,
     weight_file,
-    cycle_file
+    cycle_file,
+    output_file
 ):
     p_mode = 0
     if precision == 4:
@@ -75,6 +77,7 @@ def generate_simv_command(
 
     cmd = (
         f"./simv "
+        f"+CONV_MODE={conv_mode} "
         f"+INPUT_SIZE={input_size} "
         f"+INPUT_CHANNELS={input_channels} "
         f"+OUTPUT_CHANNELS={output_channels} "
@@ -85,6 +88,7 @@ def generate_simv_command(
         f'+INPUT_FILE="{input_file}" '
         f'+WEIGHT_FILE="{weight_file}" '
         f'+CYCLE_FILE="{cycle_file}"'
+        f'+OUTPUT_FILE="{output_file}"'
     )
     return cmd
 
@@ -117,24 +121,29 @@ def main():
                     stride = row['Stride']
                     type = row['Type']
                     
-                    if type == "P":
+                    conv_mode = 0 if type == "P" else 1
+
+                    if identifier == "1":
+                        out_size = h if type == "P" else h - 2
                         i_filename = f"vww/{spad_data_width}_bits/inputs/{identifier}.txt"
                         w_filename = f"vww/{spad_data_width}_bits/weights/{identifier}.txt"
-                        # o_filename = f"{d}_{d}_{d}_{spad_data_width}_output.txt"
+                        o_filename = f"{d}_{d}_{d}_{spad_data_width}_output.txt"
 
                         for precision in [2]:
                             cycle_file = f"{precision}b_{d}_{d}_{d}_{spad_data_width}_cycle.txt"
                             tb_cmd = generate_simv_command(
+                                conv_mode,
                                 h,
                                 c_i,
                                 c_o,
-                                h,
+                                out_size,
                                 stride,
                                 precision,
                                 identifier,
                                 i_filename,
                                 w_filename,
-                                cycle_file
+                                cycle_file,
+                                o_filename
                             )
                             print(f"Processing {identifier} with {precision}-bit precision and dimensions {h}x{w}x{c_i} and SPAD data width {spad_data_width}\n")
                             subprocess.run(tb_cmd, shell=True)

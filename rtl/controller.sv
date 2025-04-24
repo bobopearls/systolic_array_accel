@@ -121,7 +121,7 @@ module top_controller # (
             case (state)
                 IDLE: begin
                     o_s_reg_clear <= 0;
-                    if (i_wr_done) begin
+                    if (i_wr_done & i_ir_done) begin
                         o_done <= 1;
                     end else if (i_route_en) begin
                         if (i_ir_done) begin
@@ -176,7 +176,7 @@ module top_controller # (
                         and X is from the weight router
                         and Cin is the number of elements in the FIFO
                     */
-                    if (cntr < (2*i_s_r + i_s_c - 2)) begin
+                    if (cntr < (i_s_r)) begin
                         // o_pe_en <= 1;
                         cntr <= cntr + 1;
                     end else begin
