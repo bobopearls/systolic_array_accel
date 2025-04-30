@@ -16,8 +16,8 @@ module output_router_1 #(
     input  logic [0:COLUMNS-1]                   i_valid,       // not used in top.sv
     output logic                                 o_shift_en,
     // Qunatization parameters
-    input  logic [0:COLUMNS-1][  DATA_WIDTH-1:0] i_quant_sh,
-    input  logic [0:COLUMNS-1][2*DATA_WIDTH-1:0] i_quant_m0,
+    input  logic              [  DATA_WIDTH-1:0] i_quant_sh,
+    input  logic              [2*DATA_WIDTH-1:0] i_quant_m0,
     // Address generation
     // Top module inputs
     input logic  [ADDR_WIDTH-1:0] i_i_size,
@@ -50,7 +50,7 @@ module output_router_1 #(
     logic [$clog2(COLUMNS):0] num_input_valid;
     // Parallel quant
     logic                                 quant_en;
-    logic [0:COLUMNS-1]                   quant_store_reg;
+    logic                                 quant_store_reg;
     logic [0:COLUMNS-1][2*DATA_WIDTH-1:0] quant_i_act;
     logic [0:COLUMNS-1][  DATA_WIDTH-1:0] quant_o_act;
     logic [0:COLUMNS-1]                   quant_valid;
@@ -83,9 +83,9 @@ module output_router_1 #(
                 .i_clk      (i_clk),
                 .i_nrst     (i_nrst),
                 .i_en       (quant_en),
-                .i_store_reg(quant_store_reg[q]),
-                .i_sh       (i_quant_sh[q]),
-                .i_m0       (i_quant_m0[q]),
+                .i_store_reg(quant_store_reg),
+                .i_sh       (i_quant_sh),
+                .i_m0       (i_quant_m0),
                 .i_act      (quant_i_act[q]),
                 .o_act      (quant_o_act[q]),
                 .o_valid    (quant_valid[q])
@@ -168,7 +168,7 @@ module output_router_1 #(
                     if (i_en && !o_done) begin
                         state         <= QUANT_DATA;
                         for(int i=0; i<COLUMNS; i=i+1) input_valid[i] <= (i < i_c_e - i_c_s);
-                        for(int i=0; i<COLUMNS; i=i+1) quant_store_reg[i] <= 1'b1;
+                        quant_store_reg <= 1'b1;
                     end 
                     else 
                         o_done <= 0;
@@ -176,7 +176,7 @@ module output_router_1 #(
 
                 QUANT_DATA: begin
                     if (num_input_valid > 0) begin
-                        for(int i=0; i<COLUMNS; i=i+1) quant_store_reg[i] <= 1'b0;
+                        quant_store_reg <= 1'b0;
                         if (quant_all_valid) begin
                             state         <= COLLECT_IN;
                             quant_en      <= 0;

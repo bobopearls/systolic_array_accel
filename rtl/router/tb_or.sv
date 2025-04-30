@@ -21,8 +21,8 @@ module tb_output_router;
     // logic [0:COLUMNS-1] i_valid;
     
     // Quantization parameters
-    logic [0:COLUMNS-1][DATA_WIDTH-1:0] i_quant_sh;
-    logic [0:COLUMNS-1][2*DATA_WIDTH-1:0] i_quant_m0;
+    logic [DATA_WIDTH-1:0] i_quant_sh;
+    logic [2*DATA_WIDTH-1:0] i_quant_m0;
     
     // Address generation
     logic [ADDR_WIDTH-1:0] i_i_size;
@@ -101,8 +101,10 @@ module tb_output_router;
         i_en = 0;
         i_ifmap = '0;
         // i_valid = '0;
-        for (int i=0; i<COLUMNS; i++) i_quant_sh[i] = 8'h04;    // Example quantization shift value
-        for (int i=0; i<COLUMNS; i++) i_quant_m0[i] = 16'h0100; // Example quantization multiplier
+        // for (int i=0; i<COLUMNS; i++) i_quant_sh[i] = 8'h04;    // Example quantization shift value
+        // for (int i=0; i<COLUMNS; i++) i_quant_m0[i] = 16'h0100; // Example quantization multiplier
+        i_quant_sh = 8'h04;
+        i_quant_m0 = 16'h0100;
         i_i_size = 6;
         i_c_size = 6;
         
