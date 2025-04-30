@@ -1,11 +1,25 @@
 import argparse
 import subprocess
 import sys
+import random
 
 def generate_sequential_array(input_size, precision):
     max_value = 1 << precision
     total_elements = input_size * input_size
     array_1d = [i % max_value for i in range(total_elements)]
+    
+    array_2d = []
+    for row_index in range(input_size):
+        start = row_index * input_size
+        end = start + input_size
+        array_2d.append(array_1d[start:end])
+    
+    return array_2d
+
+def generate_random_array(input_size, precision):
+    max_value = 1 << precision
+    total_elements = input_size * input_size
+    array_1d = [int(random.uniform(0,max_value)) % max_value for _ in range(total_elements)]
     
     array_2d = []
     for row_index in range(input_size):
@@ -144,6 +158,7 @@ def main():
     ifmap = []
     for _ in range(input_channels):
         ifmap.append(generate_sequential_array(input_size, 8))
+        # ifmap.append(generate_random_array(input_size, 8))
 
     ifmap = convert_nchw_to_nhwc(ifmap)
 
@@ -151,6 +166,7 @@ def main():
     kernel = []
     for i in range(output_channels):
         kernel.append([64*(i+1)] * input_channels)
+        # kernel.append([int(random.uniform(32,64))] * input_channels)
 
     k_flat = flatten_2d_array(kernel)
     i_flat = flatten_3d_array(ifmap)
