@@ -1,5 +1,5 @@
 
-module output_router_1 #(
+module output_router #(
     parameter int SPAD_WIDTH = 64,
     parameter int DATA_WIDTH = 8,
     parameter int SPAD_N = SPAD_WIDTH / DATA_WIDTH,

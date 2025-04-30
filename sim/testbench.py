@@ -109,14 +109,14 @@ def write_testbench_parameters(input_size, input_channels, output_channels, stri
         p_mode = 2
 
     header = f"""
-    `define INPUT_SIZE {input_size}
-    `define INPUT_CHANNELS {input_channels}
-    `define OUTPUT_CHANNELS {output_channels}
-    `define OUTPUT_SIZE {input_size}
-    `define STRIDE {stride}
-    `define PRECISION {p_mode}"""
+`define INPUT_SIZE {input_size}
+`define INPUT_CHANNELS {input_channels}
+`define OUTPUT_CHANNELS {output_channels}
+`define OUTPUT_SIZE {input_size}
+`define STRIDE {stride}
+`define PRECISION {p_mode}"""
 
-    with open("sim/tb_top.svh", "w") as file:
+    with open("tb_top.svh", "w") as file:
         file.write(header)
 
 def write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth):
@@ -135,14 +135,14 @@ def write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth,
 
 def main():
     parser = argparse.ArgumentParser(description="Process input parameters.")
-    parser.add_argument("input_size", type=int, help="Size of input")
-    parser.add_argument("input_channels", type=int, help="Number of input channels")
+    parser.add_argument("input_size"     , type=int, help="Size of input")
+    parser.add_argument("input_channels" , type=int, help="Number of input channels")
     parser.add_argument("output_channels", type=int, help="Number of output channels")
-    parser.add_argument("stride", type=int, help="Stride value")
-    parser.add_argument("precision", type=int, help="Precision value")
-    parser.add_argument("type", type=str, help="Type of testbench to run")
-    # parser.add_argument("c_tile", type=int, help="Size of C tile")
-    # parser.add_argument("hw_tile", type=int, help="Size of HW tile")
+    parser.add_argument("stride"         , type=int, help="Stride value")
+    parser.add_argument("precision"      , type=int, help="Precision value")
+    parser.add_argument("type"           , type=str, help="Type of testbench to run")
+    # parser.add_argument("c_tile"         , type=int, help="Size of C tile")
+    # parser.add_argument("hw_tile"        , type=int, help="Size of HW tile")
 
     args = parser.parse_args()
 
@@ -187,7 +187,8 @@ def main():
     write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
     print(f"System parameters written to rtl/global.svh")
     print("-" * 60)
-    print(f"Data width: {data_width}, SPAD data width: {spad_data_width}, Address width: {addr_width}\nRows: {rows}, Columns: {cols}, MISO depth: {miso_depth}, MPP depth: {mpp_depth}")
+    print(f"Data width: {data_width}, SPAD data width: {spad_data_width}, Address width: {addr_width}")
+    print(f"Rows: {rows}, Columns: {cols}, MISO depth: {miso_depth}, MPP depth: {mpp_depth}")
     print("-" * 60)
     print(f"Testbench parameters written to sim/tb_top.svh")
 
@@ -196,17 +197,16 @@ def main():
 
 
     sram_hex_to_mem(k_flat, spad_n, 'kernel.mem')
-    sram_hex_to_mem(i_flat, spad_n, 'ifmap.mem')
+    sram_hex_to_mem(i_flat, spad_n, 'ifmap.mem' )
 
     if tb_type == "l":
-        # sim_command = "xargs -a filelist.txt iverilog -g2012 -o dsn"
-        sim_command = "iverilog -g2012 -o dsn -f filelist.txt"
+        # sim_command = "xargs -a ../filelist.txt iverilog -g2012 -o dsn"
+        sim_command = "iverilog -g2012 -o dsn -f ../filelist.txt"
         subprocess.run(sim_command, shell=True)
-    
-        subprocess.run("vvp dsn", shell=True)
+        subprocess.run("vvp dsn"  , shell=True)
     else:
-        vcs_cmd = "vcs tb_top.sv ../mapped/top_mapped.v /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/verilog/GF22FDX_SC7P5T_116    CPP_BASE_CSC20L.v /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/verilog/prim.v -sverilog -full64 -debug_pp +neg_tchk -R -l v cs.log"
-        subprocess.run(vcs_cmd, shell=True)
+        vcs_cmd = "vcs tb_top.sv ../mapped/top_mapped.v /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/verilog/GF22FDX_SC7P5T_116CPP_BASE_CSC20L.v /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/verilog/prim.v -sverilog -full64 -debug_pp +neg_tchk -R -l v cs.log"
+        subprocess.run(vcs_cmd    , shell=True)
     
     # Check if the difference of output and golden_output
     sim_command = "diff output.txt golden_output.txt"
