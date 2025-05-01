@@ -176,7 +176,8 @@ module top #(
         .i_s_r(s_r),
         .i_s_c(s_c),
         .i_t(s_t),
-        .o_state(o_top_state)
+        .o_state(o_top_state),
+        .i_conv_mode(i_conv_mode)
     );
 
     input_router #(
