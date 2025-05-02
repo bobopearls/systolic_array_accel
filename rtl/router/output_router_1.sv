@@ -67,7 +67,7 @@ module output_router #(
     logic [ADDR_WIDTH-1:0] limit_x, limit_y, limit_c, limit_xy;
     logic [ADDR_WIDTH-1:0] xy_count;
     // SPAD address
-    logic [ADDR_WIDTH-1:0] byte_addr;   // which byte in the SPAD
+    logic [2*ADDR_WIDTH-1:0] byte_addr;   // which byte in the SPAD
     logic [ADDR_WIDTH-1:0] word_addr;   // which word in the SPAD
     logic [SPAD_N-1:0] byte_offset;     // which byte in the word
     // address = n*HWC + h*WC + w*C + c
