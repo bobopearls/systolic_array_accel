@@ -76,7 +76,7 @@ module top_controller # (
     logic precision_shift;
     assign precision_shift = (i_p_mode == 2'b00) ? 0 :
                             (i_p_mode == 2'b01) ? 1 :
-                            (i_p_mode == 2'b10) ? 2 : ;
+                            (i_p_mode == 2'b10) ? 2 : 0;
 
     // Create an FSM to control the entire process
     /*
