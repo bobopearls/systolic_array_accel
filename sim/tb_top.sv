@@ -5,6 +5,7 @@ module tb_top;
     localparam int SRAM_DATA_WIDTH = `SPAD_DATA_WIDTH;
     localparam int ADDR_WIDTH = `ADDR_WIDTH;
     localparam int DATA_WIDTH = `DATA_WIDTH;
+    localparam int SPAD_N = `SPAD_N;
 
     // Counters
     int counter = 0; // counter initialization
@@ -36,7 +37,8 @@ module tb_top;
     logic [ADDR_WIDTH-1:0] i_w_start_addr, i_w_addr_end, i_route_size;
     logic [SRAM_DATA_WIDTH-1:0] o_word;
     logic o_word_valid;
-    logic [ADDR_WIDTH-1:0] o_word_addr, o_word_byte_offset;
+    logic [ADDR_WIDTH-1:0] o_word_addr;
+    logic [SPAD_N-1:0] o_word_byte_offset;
     logic [ADDR_WIDTH-1:0] o_o_x, o_o_y, o_o_c;
 
     logic [DATA_WIDTH*2-1:0] o_ofmap;
@@ -91,8 +93,8 @@ module tb_top;
         // $dumpvars(0, tb_top);
 
         // VCS 
-        $vcdplusfile("tb_top.vpd");
-        $vcdpluson;
+        // $vcdplusfile("tb_top.vpd");
+        // $vcdpluson;
         // $sdf_annotate("../mapped/top_mapped.sdf", dut);
         // // Prime Time        
         // $dumpfile("top.dump");
