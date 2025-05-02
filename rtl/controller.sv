@@ -33,6 +33,7 @@ module top_controller # (
     output logic o_pe_en, // Systolic array
     output logic o_psum_out_en, // Systolic array
     output logic o_scan_en, // Systolic array
+    input logic [1:0] i_p_mode,
 
     // Ready to Pop signals
     input logic i_ir_ready,
@@ -71,6 +72,11 @@ module top_controller # (
     parameter int COMPUTE = 4;
     parameter int OUTPUT_ROUTING = 5;
     parameter int DONE = 6;
+
+    logic precision_shift;
+    assign precision_shift = (i_p_mode == 2'b00) ? 0 :
+                            (i_p_mode == 2'b01) ? 1 :
+                            (i_p_mode == 2'b10) ? 2 : ;
 
     // Create an FSM to control the entire process
     /*
@@ -176,7 +182,7 @@ module top_controller # (
                         and X is from the weight router
                         and Cin is the number of elements in the FIFO
                     */
-                    if (cntr < (2*i_s_r + i_s_c)) begin
+                    if (cntr < ((2*i_s_r + i_s_c) >> precision_shift)) begin
                         // o_pe_en <= 1;
                         cntr <= cntr + 1;
                     end else begin
