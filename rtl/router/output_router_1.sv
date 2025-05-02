@@ -62,12 +62,13 @@ module output_router #(
     logic        [$clog2(SPAD_N):0]       bytes_in_buffer;
     // 
     logic [ADDR_WIDTH-1:0] current_x, current_y, current_c;
+    logic [ADDR_WIDTH-1:0] prev_x, prev_y;
     logic [ADDR_WIDTH-1:0] start_x, start_y, start_c;
     logic [ADDR_WIDTH-1:0] limit_x, limit_y, limit_c, limit_xy;
     // SPAD address
-    logic [ADDR_WIDTH-1:0] byte_addr;    // which byte in the SPAD
-    logic [ADDR_WIDTH-1:0] word_addr;    // which word in the SPAD
-    logic [ADDR_WIDTH-1:0] byte_offset;  // which byte in the word
+    logic [ADDR_WIDTH-1:0] byte_addr;   // which byte in the SPAD
+    logic [ADDR_WIDTH-1:0] word_addr;   // which word in the SPAD
+    logic [SPAD_N-1:0] byte_offset;     // which byte in the word
     // address = n*HWC + h*WC + w*C + c
     always_comb begin
         byte_addr   = (current_x * i_i_size + current_y) * i_c_size + current_c;
@@ -140,6 +141,8 @@ module output_router #(
 
             current_x       <= 0;
             current_y       <= 0;
+            prev_x          <= 0;
+            prev_y          <= 0;
             current_c       <= 0;
             start_x         <= 0;
             start_y         <= 0;
@@ -161,6 +164,8 @@ module output_router #(
                     if (i_xy_valid) begin
                         current_x <= i_x_s;
                         current_y <= i_y_s;
+                        prev_x    <= i_x_s;
+                        prev_y    <= i_y_s;
                         start_x   <= i_x_s;
                         start_y   <= i_y_s;
                         limit_x   <= i_x_e;

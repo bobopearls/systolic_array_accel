@@ -87,12 +87,12 @@ module tb_top;
 
     initial begin
         // Iverilog
-        $dumpfile("tb.vcd");
-        $dumpvars(0, tb_top);
+        // $dumpfile("tb.vcd");
+        // $dumpvars(0, tb_top);
 
         // VCS 
-        // $vcdplusfile("tb_top.vpd");
-        // $vcdpluson;
+        $vcdplusfile("tb_top.vpd");
+        $vcdpluson;
         // $sdf_annotate("../mapped/top_mapped.sdf", dut);
         // // Prime Time        
         // $dumpfile("top.dump");
@@ -211,7 +211,7 @@ module tb_top;
     // Monitor and write to output file whenever o_ofmap_valid is high
     always @(posedge i_clk) begin
         if (o_word_valid) begin
-            $fwrite(output_file, "%h, %h, %h\n", o_word, o_word_addr, o_word_byte_offset);
+            $fwrite(output_file, "%h, %h, %h, %h, %h, %h\n", o_o_x, o_o_y, o_o_c, o_word_addr, o_word, o_word_byte_offset);
         end
     end
 
