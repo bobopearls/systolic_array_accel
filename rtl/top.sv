@@ -61,7 +61,8 @@ module top #(
     output logic o_or_data_out_valid,
     output logic [2:0] o_top_state,
     output logic o_or_en,
-    output logic o_pe_en
+    output logic o_pe_en,
+    output logic o_route_en
 
 );
     logic spad_w_write_en, spad_i_write_en;
@@ -219,7 +220,8 @@ module top #(
         .o_done(ir_done),
         .o_tile_done(ir_tile_done),
         .o_s_r(s_r),
-        .o_t(s_t)
+        .o_t(s_t),
+        .o_route_en(o_route_en)
     );
 
     weight_router #(

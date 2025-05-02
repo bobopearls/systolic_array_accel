@@ -14,6 +14,7 @@ module tb_top;
     int compute_counter = 0; // 3 & 4
     int output_routing_counter = 0; // 5
     int no_or_counter = 0;
+    int memory_read_counter = 0;
     
 
     // File-related variables
@@ -42,7 +43,7 @@ module tb_top;
     logic [ADDR_WIDTH-1:0] o_o_x, o_o_y, o_o_c;
 
     logic [DATA_WIDTH*2-1:0] o_ofmap;
-    logic o_ofmap_valid, o_done, o_or_en;
+    logic o_ofmap_valid, o_done, o_or_en, o_route_en;
 
     logic i_spad_select;
 
@@ -84,7 +85,8 @@ module tb_top;
         .o_or_en(o_or_en),
         .o_top_state(o_top_state),
         .o_word_addr(o_word_addr),
-        .o_word_byte_offset(o_word_byte_offset)
+        .o_word_byte_offset(o_word_byte_offset),
+        .o_route_en(o_route_en)
     );
 
     initial begin
@@ -236,6 +238,10 @@ module tb_top;
             end else if (o_top_state == 5) begin
                 output_routing_counter++;
             end
+
+            if (o_route_en) begin
+                memory_read_counter++;
+            end
         end
     end
 
@@ -245,7 +251,7 @@ module tb_top;
             $display("Simulation completed: o_done asserted.");
             $display("Total cycles: %d", counter);
 
-            $fwrite(cycle_stats, "%0d, %0d, %0d, %0d, %0d, %0d, %0d\n", layer_identifier, counter, no_or_counter, write_spad_counter, activation_routing_counter, compute_counter, output_routing_counter);
+            $fwrite(cycle_stats, "%0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d\n", layer_identifier, counter, no_or_counter, write_spad_counter, activation_routing_counter, compute_counter, output_routing_counter, memory_read_counter);
             
             $fclose(cycle_stats);
             $fclose(output_file);

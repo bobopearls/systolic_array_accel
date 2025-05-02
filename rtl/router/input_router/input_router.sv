@@ -53,7 +53,8 @@ module input_router #(
     output logic o_ready,
     output logic o_context_done, // Done with current set of values
     output logic o_done, // Done with all output values
-    output logic o_tile_done // Reset the write pointer in Weight FIFO
+    output logic o_tile_done // Reset the write pointer in Weight FIFO,
+    output logic o_route_en
 );
     // SPAD related signals
     // We will move this to top level module
@@ -203,4 +204,5 @@ module input_router #(
         .o_slots(slots)
     );
 
+    assign o_route_en = route_en;
 endmodule
