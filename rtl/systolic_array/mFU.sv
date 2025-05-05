@@ -1,4 +1,5 @@
 module mFU (
+    input logic mac_en,
     input  logic        clk, nrst,
     input  logic [ 7:0] a, b,
     input  logic [ 1:0] mode,
@@ -13,23 +14,31 @@ module mFU (
     // Enable signal generaion
     logic [15:0] en;
     always @(*) begin
-        case (mode)
-            _8x8: en = 16'b1111_1111_1111_1111;
-            _4x4: en = 16'b1111_0000_0000_1111;
-            _2x2: en = 16'b1001_0000_0000_1001; 
-            default: en = 16'b0;
-        endcase
+        if (mac_en) begin
+            case (mode)
+                _8x8: en = 16'b1111_1111_1111_1111;
+                _4x4: en = 16'b1111_0000_0000_1111;
+                _2x2: en = 16'b1001_0000_0000_1001; 
+                default: en = 16'b0;
+            endcase
+        end else begin
+            en = 16'b0;
+        end
     end
     
     // Select signal generation
     logic [31:0] sel;
     always @(*) begin
-        case (mode)
-            _8x8: sel = 32'b11100100_10100000_01000100_00000000;
-            _4x4: sel = 32'b11100100_00000000_00000000_11100100;
-            _2x2: sel = 32'b11000011_00000000_00000000_11000011; 
-            default: sel = 32'b0;
-        endcase
+        if (mac_en) begin
+            case (mode)
+                _8x8: sel = 32'b11100100_10100000_01000100_00000000;
+                _4x4: sel = 32'b11100100_00000000_00000000_11100100;
+                _2x2: sel = 32'b11000011_00000000_00000000_11000011; 
+                default: sel = 32'b0;
+            endcase
+        end else begin
+            sel = 32'b0;
+        end
     end
 
     // Internal signal for partial products
@@ -77,12 +86,16 @@ module mFU (
         if (!nrst) begin
             p = 16'h0;
         end else begin
-            case (mode)
-                _8x8:    p = { p0, p3 } +  { { {4{p1[7]}} , p1 } + { {4{p2[7]}} , p2 } , 4'b0000 };
-                _4x4:    p = {{8{p0[7]}},p0} + {{8{p3[7]}},p3};
-                _2x2:    p = {{12{p0_hh[3]}},p0_hh} + {{12{p0_ll[3]}},p0_ll} + {{12{p3_hh[3]}},p3_hh} + {{12{p3_ll[3]}},p3_ll};
-                default: p = 16'h0;
-            endcase
+            if (mac_en) begin
+                case (mode)
+                    _8x8:    p = { p0, p3 } +  { { {4{p1[7]}} , p1 } + { {4{p2[7]}} , p2 } , 4'b0000 };
+                    _4x4:    p = {{8{p0[7]}},p0} + {{8{p3[7]}},p3};
+                    _2x2:    p = {{12{p0_hh[3]}},p0_hh} + {{12{p0_ll[3]}},p0_ll} + {{12{p3_hh[3]}},p3_hh} + {{12{p3_ll[3]}},p3_ll};
+                    default: p = 16'h0;
+                endcase
+            end else begin
+                p = 16'h0;
+            end
         end
     end
 
