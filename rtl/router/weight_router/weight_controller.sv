@@ -176,11 +176,11 @@ module wr_controller #(
                             first_col <= 1;
 
                             if (d_tile_addr > 0) begin
-                                o_tile_addr <= d_tile_addr - 1;
+                                o_tile_addr <= d_tile_addr;
                             end else begin
                                 o_tile_addr <= 0;
                             end
-                            
+
                         end
                     end else begin
                         // Pwise
@@ -191,7 +191,7 @@ module wr_controller #(
                             first_col <= 1;
 
                             if (p_tile_addr > 0) begin
-                                o_tile_addr <= p_tile_addr - 1;
+                                o_tile_addr <= p_tile_addr;
                             end else begin
                                 o_tile_addr <= 0;
                             end
