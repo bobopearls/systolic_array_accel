@@ -65,6 +65,7 @@ module top_controller # (
     logic [2:0] state;
     assign o_state = state;
     logic [ROWS:0] cntr;
+
     parameter int IDLE = 0;
     parameter int CLEAR = 1;
     parameter int ACTIVATION_ROUTING = 2;
@@ -73,10 +74,17 @@ module top_controller # (
     parameter int OUTPUT_ROUTING = 5;
     parameter int DONE = 6;
 
-    logic precision_shift;
-    assign precision_shift = (i_p_mode == 2'b00) ? 0 :
-                            (i_p_mode == 2'b01) ? 1 :
-                            (i_p_mode == 2'b10) ? 2 : 0;
+    logic [1:0] precision_shift;
+
+    always_comb begin
+        // Set the precision shift based on the mode
+        case (i_p_mode)
+            2'b00: precision_shift = 0;
+            2'b01: precision_shift = 1;
+            2'b10: precision_shift = 2;
+            default: precision_shift = 0;
+        endcase
+    end
 
     // Create an FSM to control the entire process
     /*
