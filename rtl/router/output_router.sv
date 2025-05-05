@@ -174,8 +174,20 @@ module output_router #(
                         limit_y   <= i_y_e;
                         limit_xy  <= i_xy_length;
                         xy_count  <= 0;
+                    end else begin 
+                        current_x <= 0;
+                        current_y <= 0;
+                        prev_x    <= 0;
+                        prev_y    <= 0;
+                        start_x   <= 0;
+                        start_y   <= 0;
+                        limit_x  <= 0;
+                        limit_y  <= 0;
+                        limit_xy <= 0;
+                        xy_count <= 0;
                     end
-
+                        
+                    
                     if (i_c_valid) begin
                         current_c <= i_c_s;
                         start_c   <= i_c_s;
