@@ -50,7 +50,7 @@ module wr_controller #(
     output logic o_context_done,
     output logic o_ready,
     output logic [2:0] o_state,
-    output logic [ADDR_WIDTH-1:0] o_tile_addr,
+    output logic [ADDR_WIDTH-1:0] o_tile_addr, 
     output logic [ADDR_WIDTH-1:0] o_s_c
 );
     parameter int IDLE = 0;
@@ -70,9 +70,11 @@ module wr_controller #(
     logic c_increment, c_done;
 
     logic clear_type; // 0 - Clear all, 1 - Clear only FIFO
-
+    logic [ADDR_WIDTH-1:0] d_tile_addr, p_tile_addr;
     assign route_en = i_en & i_fifo_empty;
     assign c_increment = o_c < i_o_c_size - 1;
+    assign d_tile_addr = i_start_addr - 1;
+    assign p_tile_addr = ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N);
 
     logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] addr;
 
@@ -172,23 +174,28 @@ module wr_controller #(
                         o_dl_sw_addr <= addr;
                         if (!first_col) begin
                             first_col <= 1;
-                            o_tile_addr <= i_start_addr;
+
+                            if (d_tile_addr > 0) begin
+                                o_tile_addr <= d_tile_addr - 1;
+                            end else begin
+                                o_tile_addr <= 0;
+                            end
+
+                            o_tile_addr <= i_start_addr - 1;
                         end
                     end else begin
                         // Pwise
                         o_dl_end_addr <= (i_start_addr * SPAD_N) + (o_c + 1) * i_i_c_size;
                         o_dl_start_addr <= (i_start_addr * SPAD_N) + o_c * i_i_c_size;
             
-                        // Just make sure that its the address - 1
-                        if (((i_start_addr * SPAD_N) + o_c * i_i_c_size) - 1 >= 0) begin
-                            o_dl_start_addr <= ((i_start_addr * SPAD_N) + o_c * i_i_c_size) - 1;
-                        end else begin
-                            o_dl_start_addr <= 0;
-                        end
-
                         if (!first_col) begin
                             first_col <= 1;
-                            o_tile_addr <= ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N);
+
+                            if (p_tile_addr > 0) begin
+                                o_tile_addr <= p_tile_addr - 1;
+                            end else begin
+                                o_tile_addr <= 0;
+                            end
                         end
                     end
 

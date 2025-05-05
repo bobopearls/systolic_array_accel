@@ -76,7 +76,7 @@ module ir_controller #(
     logic route_en;
     logic wr_o_reset;
     logic first_row;
-    logic [ADDR_WIDTH-1:0] o_x, o_y, prev_addr, tile_addr;
+    logic [ADDR_WIDTH-1:0] o_x, o_y, prev_addr, tile_addr, d_tile_addr, p_tile_addr;
     logic y_increment, x_increment, xy_increment, xy_done;
 
     logic clear_type; // 0 - Clear all, 1 - Clear only FIFO
@@ -85,9 +85,12 @@ module ir_controller #(
     // Should not go from the start everytime
 
     assign route_en = i_en & i_fifo_empty;
-    assign x_increment = o_x < (i_o_size * i_stride) - i_stride;;
-    assign y_increment = o_y < (i_o_size * i_stride) - i_stride;;
+    assign x_increment = o_x < (i_o_size * i_stride) - i_stride;
+    assign y_increment = o_y < (i_o_size * i_stride) - i_stride;
     assign xy_increment = x_increment || y_increment;
+
+    assign d_tile_addr = ((i_start_addr * SPAD_N) + ((o_x) * i_i_size + (o_y))) >> $clog2(SPAD_N);
+    assign p_tile_addr = (prev_addr + (i_start_addr * SPAD_N)) >> $clog2(SPAD_N);
 
     logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] addr;
 
@@ -209,22 +212,27 @@ module ir_controller #(
                         o_dl_sw_addr <= addr;
                         if (!first_row) begin
                             first_row <= 1;
-                            tile_addr <= ((i_start_addr * SPAD_N) + ((o_x) * i_i_size + (o_y))) >> $clog2(SPAD_N);
+
+                            if (d_tile_addr > 0) begin
+                                tile_addr <= d_tile_addr - 1;
+                            end else begin
+                                tile_addr <= 0;
+                            end
                         end
                     end else begin
                         // Pwise
                         o_dl_end_addr <= (i_start_addr * SPAD_N) + o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
                         prev_addr <= o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
-
-                        // Just make sure that its the address - 1
-                        if (prev_addr - 1 + (i_start_addr * SPAD_N) >= 0)
-                            o_dl_start_addr <= prev_addr - 1 + (i_start_addr * SPAD_N);
-                        else
-                            o_dl_start_addr <= 0;
+                        o_dl_start_addr <= prev_addr + (i_start_addr * SPAD_N);
 
                         if (!first_row) begin
                             first_row <= 1;
-                            tile_addr <= (prev_addr + (i_start_addr * SPAD_N)) >> $clog2(SPAD_N);
+
+                            if (p_tile_addr > 0) begin
+                                tile_addr <= p_tile_addr - 1;
+                            end else begin
+                                tile_addr <= 0;
+                            end
                         end
                     end
                     o_dl_addr_write_en <= 1;
