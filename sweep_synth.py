@@ -1,5 +1,4 @@
 import subprocess
-import csv
 
 def write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth):
     header = f"""
@@ -52,20 +51,24 @@ def main():
     spad_sizing = [(32,13), (64,12), (128,11), (256,10), (512,9)]
     dimensions = [16, 32, 64, 128]
 
+    # Finished (16,32,13)
+    sweep = [(16, 64, 12), (16, 128, 11), (16, 256, 10), 
+             (16, 512, 9), (32, 32, 13), (32, 64, 12), (32, 128, 11), 
+             (32, 256, 10), (32, 512, 9), (64, 32, 13), (64, 64, 12), 
+             (64, 128, 11), (64, 256, 10), (64, 512, 9), (128, 32, 13), 
+             (128, 64, 12), (128, 128, 11), (128, 256, 10), (128, 512, 9)]
 
-    for d in dimensions:
-        for spad_data_width, addr_width in spad_sizing:
-            rows = cols = miso_depth = d
-            mpp_depth = 9
+    for dimension, spad_data_width, addr_width in sweep:
+        rows = cols = miso_depth = dimension
+        mpp_depth = 9
 
-            write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
-            write_compile_tcl(d, spad_data_width)
+        write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
+        write_compile_tcl(dimension, spad_data_width)
 
-            # Run synthesis
-            sim_command = "dc_shell -f compile.tcl -output_log_file logs/compile.log"
-            subprocess.run(sim_command, shell=True)
-            print(f"Synthesis completed for {d}x{d}x{d} with SPAD width {spad_data_width}")
-
+        # Run synthesis
+        sim_command = "dc_shell -f compile.tcl -output_log_file logs/compile.log"
+        subprocess.run(sim_command, shell=True)
+        print(f"Synthesis completed for {dimension}x{dimension}x{dimension} with SPAD width {spad_data_width}")
 
 if __name__ == "__main__":
     main()
