@@ -66,6 +66,8 @@ module top_controller # (
     assign o_state = state;
     logic [ROWS:0] cntr;
 
+    logic [ADDR_WIDTH-1:0] max_compute_cycles;
+
     parameter int IDLE = 0;
     parameter int CLEAR = 1;
     parameter int ACTIVATION_ROUTING = 2;
@@ -73,18 +75,6 @@ module top_controller # (
     parameter int COMPUTE = 4;
     parameter int OUTPUT_ROUTING = 5;
     parameter int DONE = 6;
-
-    logic [1:0] precision_shift;
-
-    always_comb begin
-        // Set the precision shift based on the mode
-        case (i_p_mode)
-            2'b00: precision_shift = 0;
-            2'b01: precision_shift = 1;
-            2'b10: precision_shift = 2;
-            default: precision_shift = 0;
-        endcase
-    end
 
     // Create an FSM to control the entire process
     /*
@@ -112,6 +102,7 @@ module top_controller # (
             o_o_c <= 0;
             o_done <= 0;
             o_s_reg_clear <= 0;
+            max_compute_cycles <= 0;
             cntr <= 0;
             state <= IDLE;
         end else if (i_reg_clear) begin
@@ -129,6 +120,7 @@ module top_controller # (
             o_o_c <= 0;
             o_done <= 0;
             o_s_reg_clear <= 0;
+            max_compute_cycles <= 0;
             cntr <= 0;
             state <= IDLE;
         end else begin
@@ -176,21 +168,24 @@ module top_controller # (
                     if (i_ir_context_done & i_wr_context_done) begin
                         o_ir_pop_en <= 0;
                         o_wr_pop_en <= 0;
-                        o_pe_en <= 0;
                         state <= COMPUTE;
+                        
+                        // Determine if there are more rows or columns being used
+                        if (i_s_r >= i_s_c) begin
+                            max_compute_cycles <= i_s_r + 1;
+                        end else begin
+                            max_compute_cycles <= i_s_c + 1;
+                        end
                     end
                     o_pe_en <= 1;
                 end
                 
                 // Given row and column, estimate how many cycles it will take to compute
                 COMPUTE: begin
-                    /*
-                        Number of cycles to compute = 2X+Y+Cin-2
-                        where Y is from the input router
-                        and X is from the weight router
-                        and Cin is the number of elements in the FIFO
-                    */
-                    if (cntr < ((2*i_s_r + i_s_c) >> precision_shift)) begin
+                    // Since all data is in systolic array, we only the number of cycles left
+                    // for the last data to traverse to all the needed PE
+                    // This is the number of cycles it will take to compute
+                    if (cntr < max_compute_cycles) begin
                         // o_pe_en <= 1;
                         cntr <= cntr + 1;
                     end else begin
