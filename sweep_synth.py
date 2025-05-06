@@ -12,7 +12,7 @@ def write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth,
     `define MISO_DEPTH {miso_depth}
     `define MPP_DEPTH {mpp_depth}"""
 
-    with open("../rtl/global.svh", "w") as file:
+    with open("rtl/global.svh", "w") as file:
         file.write(header)
 
     print("global.svh file has been generated.")
