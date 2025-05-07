@@ -1,6 +1,7 @@
 import subprocess
 import csv
 
+
 # 32-bit, 64-bit, 128-bit, 256-bit, 512-bit
 spad_sizing = [(32,13), (64,12), (128,11), (256,10), (512,9)]
 # spad_sizing = [(32,13)]
@@ -127,10 +128,10 @@ def main():
                     out_size = h if type == "P" else ((h-3) // stride) + 1
                     i_filename = f"vww/{spad_data_width}_bits/inputs/{identifier}.txt"
                     w_filename = f"vww/{spad_data_width}_bits/weights/{identifier}.txt"
-                    o_filename = f"res/out/{d}_{d}_{d}_{spad_data_width}_output.txt"
+                    o_filename = f"data/out/{d}_{d}_{d}_{spad_data_width}_output.txt"
 
                     for precision in [2, 4, 8]:
-                        cycle_file = f"res/cycles/{precision}b_{d}_{d}_{d}_{spad_data_width}_cycle.txt"
+                        cycle_file = f"data/cycles/{precision}b_{d}_{d}_{d}_{spad_data_width}_cycle.txt"
                         tb_cmd = generate_simv_command(
                             conv_mode,
                             h,
