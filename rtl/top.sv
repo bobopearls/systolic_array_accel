@@ -292,6 +292,7 @@ module top #(
         .i_nrst(i_nrst),
         .i_reg_clear(i_reg_clear || or_reg_clear),
         .i_en(or_en),
+        .i_conv_mode(i_conv_mode),
         .i_ifmap(ofmap),
         .i_valid(),
         .o_shift_en(s_shift_en),

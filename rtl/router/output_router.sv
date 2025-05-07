@@ -11,6 +11,8 @@ module output_router #(
     input  logic i_nrst,
     input  logic i_reg_clear,
     input  logic i_en,
+    input logic i_conv_mode,
+
     // Systolic Array inputs
     input  logic [0:COLUMNS-1][2*DATA_WIDTH-1:0] i_ifmap,
     input  logic [0:COLUMNS-1]                   i_valid,       // not used in top.sv
@@ -184,7 +186,14 @@ module output_router #(
                     
                     if (i_en && !o_done) begin
                         state           <= QUANT_DATA;
-                        num_input_valid <= limit_xy * (limit_c - start_c);
+                        
+                        if (i_conv_mode) begin
+                            // Depthwise
+                            num_input_valid <= limit_xy;
+                        end else begin
+                            // Pointwise
+                            num_input_valid <= limit_xy * (limit_c - start_c);
+                        end
                         quant_store_reg <= 1'b1;
                     end 
                     else 
