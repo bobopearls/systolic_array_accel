@@ -147,8 +147,11 @@ def main():
                             o_filename
                         )
                         
-                        print(f"Processing {identifier} with {precision}-bit precision and dimensions {h}x{w}x{c_i} and SPAD data width {spad_data_width}\n")
+                        print(f"Processing {identifier} with {precision}-bit precision and dimensions {d}x{d}x{d} and SPAD data width {spad_data_width}\n")
                         subprocess.run(tb_cmd, shell=True)
+
+                        with open("simulation_log.txt", "a") as log_file:
+                            log_file.write(f"Finished {identifier} with {precision}-bit precision and dimensions {d}x{d}x{d} and SPAD data width {spad_data_width}\n")
 
 if __name__ == "__main__":
     main()
