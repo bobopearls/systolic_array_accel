@@ -125,7 +125,7 @@ def main():
                             o_filename = f"data/out/{rows}_{cols}_{depth}_{spad_data_width}_output.txt"
 
                             for precision in [2, 4, 8]:
-                                cycle_file = f"cycles/{precision}b_{rows}_{cols}_{depth}_{spad_data_width}_cycle.txt"
+                                cycle_file = f"cycles/{rows}_{cols}_{depth}_{spad_data_width}_cycle.txt"
                                 tb_cmd = generate_simv_command(
                                     conv_mode,
                                     h,

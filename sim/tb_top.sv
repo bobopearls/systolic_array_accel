@@ -15,6 +15,7 @@ module tb_top;
     int output_routing_counter = 0; // 5
     int no_or_counter = 0;
     int memory_read_counter = 0;
+    int precision_display = 0;
     
 
     // File-related variables
@@ -251,7 +252,15 @@ module tb_top;
             $display("Simulation completed: o_done asserted.");
             $display("Total cycles: %d", counter);
 
-            $fwrite(cycle_stats, "%0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d\n", layer_identifier, counter, no_or_counter, write_spad_counter, activation_routing_counter, compute_counter, output_routing_counter, memory_read_counter);
+            if (precision == 0) begin
+                precision_display = 8;
+            end else if (precision == 1) begin
+                precision_display = 4;
+            end else if (precision == 2) begin
+                precision_display = 2;
+            end
+
+            $fwrite(cycle_stats, "%0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d\n", layer_identifier, precision_display, counter, no_or_counter, write_spad_counter, activation_routing_counter, compute_counter, output_routing_counter, memory_read_counter);
             
             $fclose(cycle_stats);
             $fclose(output_file);
