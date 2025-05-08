@@ -25,6 +25,7 @@ def write_compile_tcl(dimension, spad_width):
     tcl_template = """set search_path "$search_path mapped lib cons rtl"
 set target_library /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/timing/db/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_TT_0P80V_0P00V_0P00V_0P00V_25C.db
 set link_library "* $target_library"
+set_host_options -max_cores 16
 
 read_file ./rtl/ -autoread -recursive -format sverilog -top top
 current_design top
@@ -52,11 +53,7 @@ def main():
     dimensions = [16, 32, 64, 128]
 
     # Finished (16,32,13)
-    sweep = [(16, 64, 12), (16, 128, 11), (16, 256, 10), 
-             (16, 512, 9), (32, 32, 13), (32, 64, 12), (32, 128, 11), 
-             (32, 256, 10), (32, 512, 9), (64, 32, 13), (64, 64, 12), 
-             (64, 128, 11), (64, 256, 10), (64, 512, 9), (128, 32, 13), 
-             (128, 64, 12), (128, 128, 11), (128, 256, 10), (128, 512, 9)]
+    sweep = [(16, 32, 13)]
 
     for dimension, spad_data_width, addr_width in sweep:
         rows = cols = miso_depth = dimension
