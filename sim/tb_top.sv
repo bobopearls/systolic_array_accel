@@ -145,12 +145,12 @@ module tb_top;
         #10;
         i_nrst = 1;
 
-        // Open output file
-        output_file = $fopen(out_file, "w");
-        if (output_file == 0) begin
-            $display("Error opening output file!");
-            $finish;
-        end
+        // // Open output file
+        // output_file = $fopen(out_file, "w");
+        // if (output_file == 0) begin
+        //     $display("Error opening output file!");
+        //     $finish;
+        // end
 
         cycle_stats = $fopen(cycle_file, "a");
         if (cycle_stats == 0) begin
@@ -212,12 +212,12 @@ module tb_top;
         i_route_en = 1;
     end
 
-    // Monitor and write to output file whenever o_ofmap_valid is high
-    always @(posedge i_clk) begin
-        if (o_word_valid) begin
-            $fwrite(output_file, "%h, %h, %h, %h, %h, %b\n", o_o_x, o_o_y, o_o_c, o_word_addr, o_word, o_word_byte_offset);
-        end
-    end
+    // // Monitor and write to output file whenever o_ofmap_valid is high
+    // always @(posedge i_clk) begin
+    //     if (o_word_valid) begin
+    //         $fwrite(output_file, "%h, %h, %h, %h, %h, %b\n", o_o_x, o_o_y, o_o_c, o_word_addr, o_word, o_word_byte_offset);
+    //     end
+    // end
 
     always @(posedge i_clk) begin
         if (i_write_en == 1) begin
