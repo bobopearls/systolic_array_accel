@@ -40,7 +40,7 @@ module pe #(
     end
 
     logic mac_en;
-    assign mac_en = i_pe_en & (i_ifmap != 0) & (i_weight != 0);
+    assign mac_en = i_pe_en & (i_ifmap != 0 || i_weight != 0);
 
     mFU mfu (
         .mac_en(mac_en),
