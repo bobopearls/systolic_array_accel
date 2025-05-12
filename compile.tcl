@@ -9,10 +9,10 @@ link
 check_design > logs/check_design.log
 source timing.con
 check_timing > logs/check_timing.log
-compile
+compile -incremental_mapping -map_effort low
 report_constraint -all_violators > logs/constraint_report.log
 report_area -hierarchy > logs/area_report.log
-report_timing -hierarchy > logs/timing_report.log
+report_timing > logs/timing_report.log
 report_power -hierarchy  > logs/power_report.log
 write_file -format verilog -hierarchy -output mapped/top_mapped.v
 write_file -format ddc -hierarchy -output mapped/top_mapped.ddc

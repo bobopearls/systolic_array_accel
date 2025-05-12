@@ -17,7 +17,7 @@ def write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth,
     print("global.svh file has been generated.")
 
 
-def write_compile_tcl(dimension, spad_width):
+def write_compile_tcl(dimension, depth, spad_width):
     """
     Generate a Synopsys Design Compiler script (compile.tcl)
     with the given array dimension and SPAD width.
@@ -30,18 +30,20 @@ set_host_options -max_cores 16
 read_file ./rtl/ -autoread -recursive -format sverilog -top top
 current_design top
 link
-check_design > logs/{dimension}_{spad_width}_check_design.log
+
+check_design > logs/{dimension}_{depth}_{spad_width}_check_design.log
 source timing.con
-check_timing > logs/{dimension}_{spad_width}_check_timing.log
-compile
-report_constraint -all_violators > logs/{dimension}_{spad_width}_constraint_report.log
-report_area -hierarchy > logs/{dimension}_{spad_width}_area_report.log
-report_timing > logs/{dimension}_{spad_width}_timing_report.log
-report_power -hierarchy > logs/{dimension}_{spad_width}_power_report.log
-write_file -format verilog -hierarchy -output mapped/{dimension}_{spad_width}_mapped.v
-write_file -format ddc -hierarchy -output mapped/{dimension}_{spad_width}_mapped.ddc
-write_sdf mapped/{dimension}_{spad_width}_mapped.sdf
-write_sdc mapped/{dimension}_{spad_width}_mapped.sdc
+check_timing > logs/{dimension}_{depth}_{spad_width}_check_timing.log
+compile -incremental_mapping -map_effort low
+
+report_constraint -all_violators > logs/{dimension}_{depth}_{spad_width}_constraint_report.log
+report_area -hierarchy > logs/{dimension}_{depth}_{spad_width}_area_report.log
+report_timing > logs/{dimension}_{depth}_{spad_width}_timing_report.log
+report_power -hierarchy > logs/{dimension}_{depth}_{spad_width}_power_report.log
+write_file -format verilog -hierarchy -output mapped/{dimension}_{depth}_{spad_width}_mapped.v
+write_file -format ddc -hierarchy -output mapped/{dimension}_{depth}_{spad_width}_mapped.ddc
+write_sdf mapped/{dimension}_{depth}_{spad_width}_mapped.sdf
+write_sdc mapped/{dimension}_{depth}_{spad_width}_mapped.sdc
 quit
 """
     with open("compile.tcl", "w") as f:
@@ -49,23 +51,25 @@ quit
 
 def main():
     # 32-bit, 64-bit, 128-bit, 256-bit, 512-bit
-    spad_sizing = [(32,13), (64,12), (128,11), (256,10), (512,9)]
-    dimensions = [16, 32, 64, 128]
+    #spad_sizing = [(32,13), (64,12), (128,11), (256,10), (512,9)]
+    spad_sizing = [(256,10)]
+    dimensions = [32]
+    depths = [64]
 
-    # Finished (16,32,13)
-    sweep = [(16, 32, 13)]
+    for spad_data_width, addr_width in spad_sizing:
+        for dimension in dimensions:
+            for depth in depths:
+                rows = cols = dimension
+                miso_depth = depth
+                mpp_depth = 9
 
-    for dimension, spad_data_width, addr_width in sweep:
-        rows = cols = miso_depth = dimension
-        mpp_depth = 9
+                write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
+                write_compile_tcl(dimension, spad_data_width)
 
-        write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
-        write_compile_tcl(dimension, spad_data_width)
-
-        # Run synthesis
-        sim_command = f"dc_shell -f compile.tcl -output_log_file logs/{dimension}_{spad_data_width}_compile.log"
-        subprocess.run(sim_command, shell=True)
-        print(f"Synthesis completed for {dimension}x{dimension}x{dimension} with SPAD width {spad_data_width}")
+                # Run synthesis
+                sim_command = f"dc_shell -f compile.tcl -output_log_file logs/{dimension}_{spad_data_width}_compile.log"
+                subprocess.run(sim_command, shell=True)
+                print(f"Synthesis completed for {dimension}x{dimension}x{dimension} with SPAD width {spad_data_width}")
 
 if __name__ == "__main__":
     main()
