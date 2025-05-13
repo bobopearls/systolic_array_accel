@@ -22,8 +22,8 @@ set_clock_uncertainty -setup $CLK_UNCERTAINTY_SETUP [get_clocks i_clk]
 
 ## Set boundary constraints.
 ## Uncomment for inputs/outputs that go to places of non-standard timing
-# set_input_delay $INPUT_DELAY_MAX_FRACTION -max -clock i_clk [all_inputs]
-# set_output_delay $OUTPUT_DELAY_MAX_FRACTION -max -clock i_clk [all_outputs]
+set_input_delay $INPUT_DELAY_MAX_FRACTION -max -clock i_clk [all_inputs]
+set_output_delay $OUTPUT_DELAY_MAX_FRACTION -max -clock i_clk [all_outputs]
 
 ## Set environmental constraints.
 set_driving_cell -lib_cell $DRIVING_CELL [all_inputs]
