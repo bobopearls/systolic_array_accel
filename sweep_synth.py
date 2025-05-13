@@ -29,12 +29,13 @@ set_host_options -max_cores 16
 
 read_file ./rtl/ -autoread -recursive -format sverilog -top top
 current_design top
+uniquify
 link
 
 check_design > logs/{dimension}_{depth}_{spad_width}_check_design.log
 source timing.con
 check_timing > logs/{dimension}_{depth}_{spad_width}_check_timing.log
-compile -incremental_mapping -map_effort low
+compile -map_effort low
 
 report_constraint -all_violators > logs/{dimension}_{depth}_{spad_width}_constraint_report.log
 report_area -hierarchy > logs/{dimension}_{depth}_{spad_width}_area_report.log
@@ -52,9 +53,9 @@ quit
 def main():
     # 32-bit, 64-bit, 128-bit, 256-bit, 512-bit
     #spad_sizing = [(32,13), (64,12), (128,11), (256,10), (512,9)]
-    spad_sizing = [(256,10)]
-    dimensions = [32]
-    depths = [64]
+    spad_sizing = [(32,13)]
+    dimensions = [8]
+    depths = [16]
 
     for spad_data_width, addr_width in spad_sizing:
         for dimension in dimensions:
