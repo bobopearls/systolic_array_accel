@@ -128,8 +128,8 @@ module output_router #(
 
     logic [2:0] state;
 
-    always_ff @(posedge i_clk) begin
-        if (!i_nrst || i_reg_clear) begin
+    always_ff @(posedge i_clk or negedge i_nrst) begin
+        if (~i_nrst) begin
             state           <= IDLE_STATE;
             
             num_input_valid <= 0;
@@ -157,7 +157,38 @@ module output_router #(
             limit_c         <= 0;
 
             o_addr          <= 0;
-            // o_data_out      <= 0;
+            o_write_mask    <= 0;
+            o_valid         <= 0;
+            o_shift_en      <= 0;
+            o_done          <= 0;
+        end else if(i_reg_clear) begin
+            state           <= IDLE_STATE;
+            
+            num_input_valid <= 0;
+
+            quant_en        <= 0;
+            quant_store_reg <= 0;
+            quant_i_act     <= 0;
+
+            data_buffer     <= 0;
+            data_left       <= 0;
+            data_left_cnt   <= 0;
+
+            current_x       <= 0;
+            current_y       <= 0;
+            prev_x          <= 0;
+            prev_y          <= 0;
+            start_x         <= 0;
+            start_y         <= 0;
+            limit_x         <= 0;
+            limit_y         <= 0;
+            xy_count        <= 0;
+            limit_xy        <= 0;
+            current_c       <= 0;
+            start_c         <= 0;
+            limit_c         <= 0;
+
+            o_addr          <= 0;
             o_write_mask    <= 0;
             o_valid         <= 0;
             o_shift_en      <= 0;

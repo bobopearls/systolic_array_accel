@@ -100,6 +100,7 @@ module top_controller # (
             o_scan_en <= 0;
             o_ir_reg_clear <= 0;
             o_wr_reg_clear <= 0;
+            o_or_reg_clear <= 0;
             o_o_c <= 0;
             o_done <= 0;
             o_s_reg_clear <= 0;
@@ -118,6 +119,7 @@ module top_controller # (
             o_scan_en <= 0;
             o_ir_reg_clear <= 0;
             o_wr_reg_clear <= 0;
+            o_or_reg_clear <= 0;
             o_o_c <= 0;
             o_done <= 0;
             o_s_reg_clear <= 0;
