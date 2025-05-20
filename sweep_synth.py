@@ -31,10 +31,7 @@ read_file ./rtl/ -autoread -recursive -format sverilog -top top
 current_design top
 link
 
-check_design > logs/{dimension}_{depth}_{spad_width}_check_design.log
 source timing.con
-check_timing > logs/{dimension}_{depth}_{spad_width}_check_timing.log
-compile -incremental_mapping -map_effort medium
 
 report_constraint -all_violators > logs/{dimension}_{depth}_{spad_width}_constraint_report.log
 report_area -hierarchy > logs/{dimension}_{depth}_{spad_width}_area_report.log
@@ -52,24 +49,25 @@ quit
 def main():
     # 32-bit, 64-bit, 128-bit, 256-bit, 512-bit
     #spad_sizing = [(32,13), (64,12), (128,11), (256,10), (512,9)]
-    spad_sizing = [(32,13)]
-    dimensions = [8]
-    depths = [16]
+    spad_sizing = [(32,13), (64,12), (128,11), (256,10), (512,9)]
+    dimensions = [16, 32, 64, 128]
+    depths = [16, 32, 64]
 
-    for spad_data_width, addr_width in spad_sizing:
-        for dimension in dimensions:
-            for depth in depths:
-                rows = cols = dimension
-                miso_depth = depth
-                mpp_depth = 9
 
-                write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
-                write_compile_tcl(dimension, depth, spad_data_width)
+    design = [(8, 64, 32, 13), (32,32,32,13), (32,64,32,13), (32,128,32,13)]
 
-                # Run synthesis
-                sim_command = f"dc_shell -f compile.tcl -output_log_file logs/{dimension}_{spad_data_width}_compile.log"
-                subprocess.run(sim_command, shell=True)
-                print(f"Synthesis completed for {dimension}x{dimension}x{dimension} with SPAD width {spad_data_width}")
+    for dimension, depth, spad_data_width, addr_width in design:
+        rows = cols = dimension
+        miso_depth = depth
+        mpp_depth = 9
+
+        write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth, mpp_depth)
+        write_compile_tcl(dimension, depth, spad_data_width)
+
+        # Run synthesis
+        sim_command = f"dc_shell -f compile.tcl -output_log_file logs/{dimension}_{spad_data_width}_compile.log"
+        subprocess.run(sim_command, shell=True)
+        print(f"Synthesis completed for {dimension}x{dimension}x{depth} with SPAD width {spad_data_width}")
 
 if __name__ == "__main__":
     main()
