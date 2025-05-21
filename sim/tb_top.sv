@@ -24,7 +24,7 @@ module tb_top;
     int input_size, input_channels, output_channels, output_size, stride, precision, layer_identifier;
 
 
-    string input_file, weight_file, cycle_file, out_file;
+    string input_file, weight_file, mapped_file, dump_file;
 
     logic [SRAM_DATA_WIDTH-1:0] mem_data;
 
@@ -90,22 +90,31 @@ module tb_top;
         .o_route_en(o_route_en)
     );
 
-    initial begin
-        // Iverilog
-        // $dumpfile("tb.vcd");
-        // $dumpvars(0, tb_top);
-
-        // VCS 
-        // $vcdplusfile("tb_top.vpd");
-        // $vcdpluson;
-        // $sdf_annotate("../mapped/top_mapped.sdf", dut);
-        // // Prime Time        
-        // $dumpfile("top.dump");
-        // $dumpvars(0, tb_top);
-    end
-
     // Testbench initialization
     initial begin
+        if (!$value$plusargs("CONV_MODE=%d", i_conv_mode)) i_conv_mode = 0;
+        if (!$value$plusargs("INPUT_SIZE=%d", input_size)) input_size = 0;
+        if (!$value$plusargs("INPUT_CHANNELS=%d", input_channels)) input_channels = 0;
+        if (!$value$plusargs("OUTPUT_CHANNELS=%d", output_channels)) output_channels = 0;
+        if (!$value$plusargs("OUTPUT_SIZE=%d", output_size)) output_size = 0;
+        if (!$value$plusargs("STRIDE=%d", stride)) stride = 1;
+        if (!$value$plusargs("PRECISION=%d", precision)) precision = 8;
+        if (!$value$plusargs("LAYER_IDENTIFIER=%d", layer_identifier)) layer_identifier = 0;
+
+        // Strings (for file paths)
+        if (!$value$plusargs("INPUT_FILE=%s", input_file)) input_file = "inputs.txt";
+        if (!$value$plusargs("WEIGHT_FILE=%s", weight_file)) weight_file = "weights.txt";
+        if (!$value$plusargs("MAPPED_FILE=%s", mapped_file)) mapped_file = "../mapped/8_16_32.sdf";
+        if (!$value$plusargs("DUMP_FILE=%s", dump_file)) dump_file = "top.dump";
+
+                // VCS 
+        $vcdplusfile("tb_top.vpd");
+        $vcdpluson;
+        $sdf_annotate(mapped_file, dut);
+        // Prime Time        
+        $dumpfile(dump_file);
+        $dumpvars(0, tb_top);
+
         // Default values
         i_nrst = 0;
         i_reg_clear = 0;
@@ -119,20 +128,7 @@ module tb_top;
         i_route_size = 9;
         i_route_en = 0;
 
-        if (!$value$plusargs("CONV_MODE=%d", i_conv_mode)) i_conv_mode = 0;
-        if (!$value$plusargs("INPUT_SIZE=%d", input_size)) input_size = 0;
-        if (!$value$plusargs("INPUT_CHANNELS=%d", input_channels)) input_channels = 0;
-        if (!$value$plusargs("OUTPUT_CHANNELS=%d", output_channels)) output_channels = 0;
-        if (!$value$plusargs("OUTPUT_SIZE=%d", output_size)) output_size = 0;
-        if (!$value$plusargs("STRIDE=%d", stride)) stride = 1;
-        if (!$value$plusargs("PRECISION=%d", precision)) precision = 8;
-        if (!$value$plusargs("LAYER_IDENTIFIER=%d", layer_identifier)) layer_identifier = 0;
 
-        // Strings (for file paths)
-        if (!$value$plusargs("INPUT_FILE=%s", input_file)) input_file = "inputs.txt";
-        if (!$value$plusargs("WEIGHT_FILE=%s", weight_file)) weight_file = "weights.txt";
-        if (!$value$plusargs("CYCLE_FILE=%s", cycle_file)) cycle_file = "default_cycle.txt";
-        if (!$value$plusargs("OUTPUT_FILE=%s", out_file)) out_file = "output.txt";
 
         i_size = input_size;
         i_c_size = input_channels;
@@ -147,13 +143,13 @@ module tb_top;
         i_nrst = 1;
 
         // // Open output file
-        // output_file = $fopen(out_file, "w");
+        // output_file = $fopen(dump_file, "w");
         // if (output_file == 0) begin
         //     $display("Error opening output file!");
         //     $finish;
         // end
 
-        cycle_stats = $fopen(cycle_file, "a");
+        cycle_stats = $fopen(mapped_file, "a");
         if (cycle_stats == 0) begin
             $display("ERROR: Failed to open file.");
             $finish;
@@ -213,13 +209,6 @@ module tb_top;
         i_route_en = 1;
     end
 
-    // // Monitor and write to output file whenever o_ofmap_valid is high
-    // always @(posedge i_clk) begin
-    //     if (o_word_valid) begin
-    //         $fwrite(output_file, "%h, %h, %h, %h, %h, %b\n", o_o_x, o_o_y, o_o_c, o_word_addr, o_word, o_word_byte_offset);
-    //     end
-    // end
-
     always @(posedge i_clk) begin
         if (i_write_en == 1) begin
             write_spad_counter++;
@@ -229,20 +218,6 @@ module tb_top;
     always @(posedge i_clk) begin
         if (i_route_en) begin
             counter++;
-
-            if (!o_or_en) no_or_counter++;
-
-            if (o_top_state == 2) begin
-                activation_routing_counter++;
-            end else if (o_top_state == 3 || o_top_state == 4) begin
-                compute_counter++;
-            end else if (o_top_state == 5) begin
-                output_routing_counter++;
-            end
-
-            if (o_route_en) begin
-                memory_read_counter++;
-            end
         end
     end
 
@@ -251,19 +226,6 @@ module tb_top;
         if (o_done) begin
             $display("Simulation completed: o_done asserted.");
             $display("Total cycles: %d", counter);
-
-            if (precision == 0) begin
-                precision_display = 8;
-            end else if (precision == 1) begin
-                precision_display = 4;
-            end else if (precision == 2) begin
-                precision_display = 2;
-            end
-
-            $fwrite(cycle_stats, "%0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d\n", layer_identifier, precision_display, counter, no_or_counter, write_spad_counter, activation_routing_counter, compute_counter, output_routing_counter, memory_read_counter);
-            
-            $fclose(cycle_stats);
-            $fclose(output_file);
             $finish;
         end
     end
