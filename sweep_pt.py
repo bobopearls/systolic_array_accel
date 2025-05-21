@@ -11,7 +11,7 @@ set target_library /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_
 set link_library "* $target_library"
 
 # Read the synthesized netlist
-read_verilog top_mapped.v
+read_verilog 8_16_32_mapped.v
 current_design top
 link_design
 
@@ -75,10 +75,10 @@ def generate_simv_command(
 def main():
     csv_path = "vww/metadata.csv"
 
-    spad_data_width = [32]
-    addr_width = [13]
-    dimension = [8]
-    depth = [16]
+    spad_data_width = 32
+    addr_width = 13
+    dimension = 8
+    depth = 16
 
     sim_command = "vcs -f ../filelist.txt -full64 -sverilog -debug_pp"
     subprocess.run(sim_command, shell=True)
@@ -100,7 +100,7 @@ def main():
             out_size = h if type == "P" else ((h-3) // stride) + 1
             i_filename = f"vww/{spad_data_width}_bits/inputs/{identifier}.txt"
             w_filename = f"vww/{spad_data_width}_bits/weights/{identifier}.txt"
-            mapped_file = f"data/sdf/{dimension}_{depth}_{spad_data_width}_mapped.sdf"
+            mapped_file = f"../mapped/{dimension}_{depth}_{spad_data_width}_mapped.sdf"
 
 
             for precision in [2, 4, 8]:
@@ -131,7 +131,8 @@ def main():
                 report_file = f"logs/{dimension}_{depth}_{spad_data_width}_{identifier}_{precision}_power.rpt"
                 write_power_tcl(dump_file, report_file)
 
-                cmd = f"dc_shell -f power.tcl -output_log_file logs/{dimension}_{depth}_{spad_data_width}_{identifier}_{precision}_power.log"
+                cmd = f"pt_shell -f power.tcl -output_log_file logs/{dimension}_{depth}_{spad_data_width}_{identifier}_{precision}_power.log"
+                subprocess.run(cmd, shell=True)
 
 if __name__ == "__main__":
     main()
