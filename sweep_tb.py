@@ -90,62 +90,61 @@ def generate_simv_command(
 def main():
     csv_path = "vww/metadata.csv"
 
-    spad_sizing = [(32,13), (64,12), (128,11), (256,10), (512,9)]
-    dimensions = [8, 16, 32, 64, 128, 256, 512, 1024]
-    fifo_depth = [16, 32, 64, 128, 256]
+    spad_sizing = [(32,13)]
+    dimensions = [8]
+    columns = [1]
+    fifo_depth = [16]
     mpp_depth = 9
 
     for spad_data_width, addr_width in spad_sizing:
         for rows in dimensions:
-            for cols in dimensions:
-                for depth in fifo_depth:
-                    write_system_parameters(spad_data_width, addr_width, rows, cols, depth, mpp_depth)
-                    # Synthesize design
-                    sim_command = "vcs -f ../filelist.txt -full64 -sverilog -debug_pp"
-                    subprocess.run(sim_command, shell=True)
-                    print(f"Compilation completed for {rows}x{cols}x{depth} with SPAD bus width {spad_data_width}\n")
-                    
-                    with open(csv_path, mode='r') as file:
-                        reader = csv.DictReader(file)
-                        for row in reader:
-                            identifier = row['Identifier']
-                            h = int(row['H/W'])
-                            w = int(row['H/W'])
-                            c_i = int(row['C'])
-                            c_o = int(row['Oc'])
-                            stride = int(row['Stride'])
-                            type = row['Type']
-                            
-                            # 0 for Pointwise and 1 for Depthwise
-                            conv_mode = 0 if type == "P" else 1
-                            
-                            out_size = h if type == "P" else ((h-3) // stride) + 1
-                            i_filename = f"vww/{spad_data_width}_bits/inputs/{identifier}.txt"
-                            w_filename = f"vww/{spad_data_width}_bits/weights/{identifier}.txt"
-                            o_filename = f"data/out/{rows}_{cols}_{depth}_{spad_data_width}_output.txt"
-
-                            for precision in [2, 4, 8]:
-                                cycle_file = f"cycles/{rows}_{cols}_{depth}_{spad_data_width}_cycle.txt"
-                                tb_cmd = generate_simv_command(
-                                    conv_mode,
-                                    h,
-                                    c_i,
-                                    c_o,
-                                    out_size,
-                                    stride,
-                                    precision,
-                                    identifier,
-                                    i_filename,
-                                    w_filename,
-                                    cycle_file,
-                                    o_filename
-                                )
+                for cols in columns:
+                    for depth in fifo_depth:
+                        write_system_parameters(spad_data_width, addr_width, rows, rows, depth, mpp_depth)
+                        # Synthesize design
+                        sim_command = "vcs -f ../filelist.txt -full64 -sverilog -debug_pp"
+                        subprocess.run(sim_command, shell=True)
+                        print(f"Compilation completed for {rows}x{rows}x{depth} with SPAD bus width {spad_data_width}\n")
+                        
+                        with open(csv_path, mode='r') as file:
+                            reader = csv.DictReader(file)
+                            for row in reader:
+                                identifier = row['Identifier']
+                                h = int(row['H/W'])
+                                w = int(row['H/W'])
+                                c_i = int(row['C'])
+                                c_o = int(row['Oc'])
+                                stride = int(row['Stride'])
+                                type = row['Type']
                                 
-                                print(f"Processing {identifier} with {precision}-bit precision and dimensions {rows}x{cols}x{depth} and SPAD bus width {spad_data_width}\n")
-                                subprocess.run(tb_cmd, shell=True)
+                                # 0 for Pointwise and 1 for Depthwise
+                                conv_mode = 0 if type == "P" else 1
+                                
+                                out_size = h if type == "P" else ((h-3) // stride) + 1
+                                i_filename = f"vww/{spad_data_width}_bits/inputs/{identifier}.txt"
+                                w_filename = f"vww/{spad_data_width}_bits/weights/{identifier}.txt"
+                                o_filename = f"data/out/{rows}_{rows}_{depth}_{spad_data_width}_output.txt"
 
-                                with open("simulation_log.txt", "a") as log_file:
-                                    log_file.write(f"Finished {identifier} with {precision}-bit precision and dimensions {rows}x{cols}x{depth} and SPAD bus width {spad_data_width}\n")
+                                for precision in [8]:
+                                    cycle_file = f"cycles/{rows}_{rows}_{depth}_{spad_data_width}_cycle.txt"
+                                    tb_cmd = generate_simv_command(
+                                        conv_mode,
+                                        h,
+                                        c_i,
+                                        c_o,
+                                        out_size,
+                                        stride,
+                                        precision,
+                                        identifier,
+                                        i_filename,
+                                        w_filename,
+                                        cycle_file,
+                                        o_filename
+                                    )
+                                    print(tb_cmd)
+                                    print(f"Processing {identifier} with {precision}-bit precision and dimensions {rows}x{cols}x{depth} and SPAD bus width {spad_data_width}\n")
+                                    subprocess.run(tb_cmd, shell=True)
+
 
 if __name__ == "__main__":
     main()
