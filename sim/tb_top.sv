@@ -104,6 +104,8 @@ module tb_top;
 
     // Testbench initialization
     initial begin
+        $set_toggle_region(dut);
+        $toggle_start();
         // Default values
         i_nrst = 0;
         i_reg_clear = 0;
@@ -247,6 +249,8 @@ module tb_top;
     // // Terminate simulation when o_done is high
     always @(posedge i_clk) begin
         if (o_done) begin
+            $toggle_stop();
+            $toggle_report("toggle_report.saif",1e-12, dut);
             $display("Simulation completed: o_done asserted.");
             $display("Total cycles: %d", counter);
 
@@ -262,6 +266,7 @@ module tb_top;
             
             $fclose(cycle_stats);
             $fclose(output_file);
+
             $finish;
         end
     end

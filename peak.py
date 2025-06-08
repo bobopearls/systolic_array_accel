@@ -89,10 +89,10 @@ def generate_simv_command(
 
 def main():
     csv_path = "vww/metadata.csv"
-    spad_sizing = [(128,11), ]
-    dimensions = [16]
-    columns = [16]
-    fifo_depth = [128]
+    spad_sizing = [(32,13), ]
+    dimensions = [8]
+    columns = [8]
+    fifo_depth = [16]
     mpp_depth = 9
 
     for spad_data_width, addr_width in spad_sizing:
@@ -101,15 +101,15 @@ def main():
                     for depth in fifo_depth:
                         write_system_parameters(spad_data_width, addr_width, rows, rows, depth, mpp_depth)
                         # Synthesize design
-                        sim_command = "vcs -f ../filelist.txt -full64 -sverilog -debug_pp"
+                        sim_command = "vcs tb_top.sv ../mapped/8_16_32.v /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/verilog/GF22FDX_SC7P5T_116CPP_BASE_CSC20L.v /cad/tools/libraries/dwc_logic_in_gf22fdx_sc7p5t_116cpp_base_csc20l/GF22FDX_SC7P5T_116CPP_BASE_CSC20L_FDK_RELV02R80/model/verilog/prim.v -sverilog -full64 -debug_pp +neg_tchk -R -l vcs.log"
                         subprocess.run(sim_command, shell=True)
                         print(f"Compilation completed for {rows}x{rows}x{depth} with SPAD bus width {spad_data_width}\n")
                         
                         identifier = 1
-                        h = 16
-                        w = 16
-                        c_i = 128
-                        c_o = 16
+                        h = 8
+                        w = 8
+                        c_i = 16
+                        c_o = 8
                         stride = 1
                         type = "P"
                         
@@ -117,8 +117,8 @@ def main():
                         conv_mode = 0 if type == "P" else 1
                         
                         out_size = h if type == "P" else ((h-3) // stride) + 1
-                        i_filename = f"peak_inputs.txt"
-                        w_filename = f"peak_weights.txt"
+                        i_filename = f"base_inputs.txt"
+                        w_filename = f"base_weights.txt"
                         o_filename = f"data/out/{rows}_{rows}_{depth}_{spad_data_width}_output.txt"
 
                         for precision in [8]:
