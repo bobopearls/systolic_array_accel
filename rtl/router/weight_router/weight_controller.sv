@@ -22,9 +22,9 @@ module wr_controller #(
     input logic [ADDR_WIDTH-1:0] i_start_addr,
 
     // Data lane address assignment
-    output logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] o_dl_sw_addr,
-    output logic [ADDR_WIDTH-1:0] o_dl_start_addr,
-    output logic [ADDR_WIDTH-1:0] o_dl_end_addr,
+    output logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] o_dl_sw_addr,
+    output logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] o_dl_start_addr,
+    output logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] o_dl_end_addr,
     output logic [ADDR_WIDTH-1:0] o_dl_id,
     output logic o_dl_addr_write_en,
 
@@ -76,7 +76,7 @@ module wr_controller #(
     assign d_tile_addr = i_start_addr;
     assign p_tile_addr = ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N);
 
-    logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] addr;
+    logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] addr;
 
     always_ff @(posedge i_clk or negedge i_nrst) begin
         if (~i_nrst) begin

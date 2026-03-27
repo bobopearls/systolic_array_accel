@@ -27,9 +27,9 @@ module ir_controller #(
 
     // Data lane address assignment
     input logic [ADDR_WIDTH-1:0] i_slots,
-    output logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] o_dl_sw_addr,
-    output logic [ADDR_WIDTH-1:0] o_dl_start_addr,
-    output logic [ADDR_WIDTH-1:0] o_dl_end_addr,
+    output logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] o_dl_sw_addr,
+    output logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] o_dl_start_addr,
+    output logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] o_dl_end_addr,
     output logic [ADDR_WIDTH-1:0] o_dl_id,
     output logic o_dl_addr_write_en,
 
@@ -76,7 +76,8 @@ module ir_controller #(
     logic route_en;
     logic wr_o_reset;
     logic first_row;
-    logic [ADDR_WIDTH-1:0] o_x, o_y, prev_addr, tile_addr, d_tile_addr, p_tile_addr;
+    logic [ADDR_WIDTH-1:0] o_x, o_y, x_ofmap, y_ofmap, tile_addr, d_tile_addr, p_tile_addr;
+    logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] prev_addr;
     logic y_increment, x_increment, xy_increment, xy_done;
 
     logic clear_type; // 0 - Clear all, 1 - Clear only FIFO
@@ -92,7 +93,7 @@ module ir_controller #(
     assign d_tile_addr = ((i_start_addr * SPAD_N) + ((o_x) * i_i_size + (o_y))) >> $clog2(SPAD_N);
     assign p_tile_addr = (prev_addr + (i_start_addr * SPAD_N)) >> $clog2(SPAD_N);
 
-    logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] addr;
+    logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] addr;
 
     always_ff @(posedge i_clk or negedge i_nrst) begin
         if (~i_nrst) begin
@@ -114,6 +115,8 @@ module ir_controller #(
             prev_addr <= 0;
             o_x <= 0;
             o_y <= 0;
+            x_ofmap <= 0;
+            y_ofmap <= 0;
             o_cntr_clear <= 0;
             xy_done <= 0;
 
@@ -147,6 +150,8 @@ module ir_controller #(
             prev_addr <= 0;
             o_x <= 0;
             o_y <= 0;
+            x_ofmap <= 0;
+            y_ofmap <= 0;
             o_cntr_clear <= 0;
             xy_done <= 0;
 
@@ -201,8 +206,8 @@ module ir_controller #(
                         state <= TILE_COMPARISON;
                     end else begin
                         state <= ADDRESS_GENERATION;
-                        o_x_s <= o_x;
-                        o_y_s <= o_y;
+                        o_x_s <= x_ofmap;    
+                        o_y_s <= y_ofmap;
                     end
                 end
 
@@ -244,16 +249,20 @@ module ir_controller #(
                     o_dl_addr_write_en <= 0;
                     if (y_increment) begin
                         o_y <= o_y + i_stride;
+                        y_ofmap <= y_ofmap + 1;
                     end else begin
                         if (x_increment) begin
                             o_y <= 0;
+                            y_ofmap <= 0;
                             o_x <= o_x + i_stride;
-                            o_y_e <= o_y;
+                            x_ofmap <= x_ofmap + 1;
+                            o_y_e <= y_ofmap;
                         end else begin
                             o_x <= 0;
+                            x_ofmap <= 0;
                             xy_done <= 1;
-                            o_x_e <= o_x;
-                            o_y_e <= o_y;
+                            o_x_e <= x_ofmap;
+                            o_y_e <= y_ofmap;
                             o_xy_length <= o_dl_id;
                             o_xy_valid <= 1;
                             state <= TILE_COMPARISON;
@@ -262,9 +271,9 @@ module ir_controller #(
 
                     if (o_dl_id == ROW - 1) begin
                         o_dl_id <= 0;
-                        o_x_e <= o_x;
-                        if (o_y > o_y_e) begin
-                            o_y_e <= o_y;
+                        o_x_e <= x_ofmap;
+                        if (y_ofmap > o_y_e) begin
+                            o_y_e <= y_ofmap;
                         end
                         o_xy_length <= o_dl_id;
                         o_xy_valid <= 1;

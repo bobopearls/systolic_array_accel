@@ -68,10 +68,11 @@ module weight_router #(
 
     // Controller to Router Array
     logic fifo_pop_en, fifo_route_done, fifo_empty, fifo_full, fifo_clear, fifo_idle;
-    logic [0:KERNEL_LENGTH-1][ADDR_WIDTH-1:0] dl_sw_addr;
-    logic [ADDR_WIDTH-1:0] dl_start_addr, dl_end_addr;
+    logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] dl_sw_addr;
+    logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] dl_start_addr, dl_end_addr;
     logic [ADDR_WIDTH-1:0] dl_id;
     logic dl_addr_write_en;
+    logic [DATA_WIDTH-1:0] zero_offset = 0; // Typically, zero for weights, but we will later feed the actual zero offset from the controller.
 
     spad #(
         .ADDR_WIDTH(ADDR_WIDTH),
@@ -85,6 +86,7 @@ module weight_router #(
         .i_read_en(spad_read_en),
         .i_data_in(i_spad_data_in),
         .i_write_addr(i_spad_write_addr),
+        .i_write_mask({SPAD_N{1'b1}}), // We always write a full word into the SPAD for now
         .i_read_addr(spad_read_addr),
         .o_data_out(spad_data_out),
         .o_data_out_valid(spad_data_out_valid)
@@ -180,6 +182,7 @@ module weight_router #(
         .i_data_valid(tr_data_valid),
         .i_miso_pop_en(fifo_pop_en),
         .i_p_mode(i_p_mode),
+        .i_zero_offset(zero_offset),
         .o_data(o_data),
         .o_data_valid(o_data_valid),
         .o_fifo_full(fifo_full),

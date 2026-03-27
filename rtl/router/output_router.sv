@@ -22,8 +22,9 @@ module output_router #(
     input  logic              [2*DATA_WIDTH-1:0] i_quant_m0,
     // Address generation
     // Top module inputs
-    input logic  [ADDR_WIDTH-1:0] i_i_size,
+    input logic  [ADDR_WIDTH-1:0] i_o_size,
     input logic  [ADDR_WIDTH-1:0] i_c_size,
+    input logic  [ADDR_WIDTH-1:0] i_i_c,
     // Input router inputs (tile xy dimensions)
     input  logic [ADDR_WIDTH-1:0] i_x_s,
     input  logic [ADDR_WIDTH-1:0] i_x_e,
@@ -69,12 +70,12 @@ module output_router #(
     logic [ADDR_WIDTH-1:0] limit_x, limit_y, limit_c, limit_xy;
     logic [ADDR_WIDTH-1:0] xy_count;
     // SPAD address
-    logic [2*ADDR_WIDTH-1:0] byte_addr;   // which byte in the SPAD
+    logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] byte_addr;   // which byte in the SPAD
     logic [ADDR_WIDTH-1:0] word_addr;   // which word in the SPAD
     logic [SPAD_N-1:0] byte_offset;     // which byte in the word
     // address = n*HWC + h*WC + w*C + c
     always_comb begin
-        byte_addr   = (current_x * i_i_size + current_y) * i_c_size + current_c;
+        byte_addr   = (current_x * i_o_size + current_y) * i_c_size + current_c + i_i_c;
         word_addr   = byte_addr >> $clog2(SPAD_N);
         byte_offset = byte_addr % SPAD_N;
     end
@@ -92,6 +93,7 @@ module output_router #(
                 .i_sh       (i_quant_sh),
                 .i_m0       (i_quant_m0),
                 .i_act      (quant_i_act[q]),
+                .i_zero_point(-128),
                 .o_act      (quant_o_act[q]),
                 .o_valid    (quant_valid[q])
             );
@@ -217,13 +219,15 @@ module output_router #(
                     
                     if (i_en && !o_done) begin
                         state           <= QUANT_DATA;
+                        o_shift_en <= 1;        // Shift data in systolic array. Addresses the problem of R0, R0, R1, R2, ..., RN-1
+                                                // when we want R0, R1, R2, ..., RN
                         
                         if (i_conv_mode) begin
                             // Depthwise
-                            num_input_valid <= limit_xy;
+                            num_input_valid <= (limit_xy+1);
                         end else begin
                             // Pointwise
-                            num_input_valid <= limit_xy * (limit_c - start_c);
+                            num_input_valid <= (limit_xy+1) * (limit_c - start_c + 1);
                         end
                         quant_store_reg <= 1'b1;
                     end 
@@ -253,6 +257,11 @@ module output_router #(
                     if (data_left_cnt > 0) begin
                         state <= SPAD_WRITE;
                         {data_left, data_buffer} <= data_left << (byte_offset * DATA_WIDTH);
+                        o_addr <= word_addr;
+                        o_write_mask <= ({SPAD_N{1'b1}} >> (SPAD_N - bytes_to_write)) << byte_offset;
+                        current_c       <= current_c       + bytes_to_write;
+                        num_input_valid <= num_input_valid - bytes_to_write;
+                        data_left_cnt   <= data_left_cnt   - bytes_to_write;
                     end 
                     else begin
                         state <= NEXT_ADDR;
@@ -262,28 +271,23 @@ module output_router #(
                 SPAD_WRITE: begin
                     if (!o_valid) begin
                         o_valid <= 1;
-                        o_addr <= word_addr;
-                        o_write_mask <= ({SPAD_N{1'b1}} >> (SPAD_N - bytes_to_write)) << byte_offset;
-                            
-                        num_input_valid <= num_input_valid - bytes_to_write;
-                        data_left_cnt   <= data_left_cnt   - bytes_to_write;
                     end
                     else begin
                         o_valid         <= 0;
                         // o_write_mask    <= 0;
-                        current_c       <= current_c       + bytes_to_write;
+                        // current_c       <= current_c       + bytes_to_write;
                         state           <= NEXT_ADDR;
                     end
                 end
 
                 NEXT_ADDR: begin
-                    if (current_c >= limit_c || data_left_cnt <= 0) begin
+                    if (current_c > limit_c || data_left_cnt <= 0) begin
                         current_c <= start_c;
 
                         if (current_y >= limit_y) begin
-                            current_y <= start_y;
+                            current_y <= 0;
                             if (current_x >= limit_x) begin
-                                current_x <= start_x;
+                                current_x <= 0;
                             end else begin
                                 current_x <= current_x + 1;
                                 xy_count <= xy_count + 1;

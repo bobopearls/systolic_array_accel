@@ -2,8 +2,8 @@
 
 module tb_systolic_array;
     parameter DATA_WIDTH = 8;
-    parameter WIDTH = 3;
-    parameter HEIGHT = 2;
+    parameter WIDTH = 4;  // # of cols ; length of row
+    parameter HEIGHT = 3; // # of rows
 
     logic i_clk;
     logic i_nrst;
@@ -14,7 +14,7 @@ module tb_systolic_array;
     logic [1:0] i_mode;
     logic [0:HEIGHT-1][DATA_WIDTH-1:0] i_ifmap;
     logic [0:WIDTH-1][DATA_WIDTH-1:0] i_weight;
-    logic [0:HEIGHT-1][DATA_WIDTH*2-1:0] o_ofmap;
+    logic [0:WIDTH-1][DATA_WIDTH*2-1:0] o_ofmap;  //o_ofmap is the 1st row in the array
 
     // DUT
     systolic_array #(
@@ -38,8 +38,8 @@ module tb_systolic_array;
     initial begin
         i_clk = 0;
         forever #5 i_clk = ~i_clk; // 100MHz clock
-    end
-
+    end    
+        
     // Stimulus
     initial begin
         // Initialize VCD dump
@@ -61,34 +61,87 @@ module tb_systolic_array;
         i_reg_clear = 1;
         #10;
         i_reg_clear = 0;
+        #10;
+        
+        // #cycles = i + j + k - 2
+        // #cycles = 3 + 2 + 4 - 2 = 7 cycles
+        
+        // Inject IFMAP rows and WEIGHT cols
         i_pe_en = 1;
+        i_ifmap = {8'd3, {2{8'd0}}};
+        i_weight = {{8'd2}, {3{8'd0}}};
 
-        // Static weights
-        i_weight[0] = 8'd1;
-        i_weight[1] = 8'd2;
-        i_weight[2] = 8'd3;
-
-        // Inject IFMAP rows
+        #10; // cycle 1
+        i_ifmap = {8'd1, 8'd4, 8'd0};
+        i_weight = {8'd8, 8'd5, {2{8'd0}}};
+        
         #10;
-        i_ifmap[0] = 8'd4;
-        i_ifmap[1] = 8'd5;
-
+        i_ifmap = {{2{8'd0}}, 8'd1};
+        i_weight = {8'd0, 8'd3, 8'd2, 8'd0};
+        
         #10;
-        i_ifmap[0] = 8'd0;
-        i_ifmap[1] = 8'd0;
-
+        i_ifmap = {{2{8'd0}}, 8'd6};
+        i_weight = {{2{8'd0}}, 8'd2, 8'd0};
+        
         #10;
+        i_ifmap = {3{8'd0}};    // zero input
+        i_weight = {{3{8'd0}}, 8'd7};
+        
+        #10;
+        i_weight = {4{8'd0}};;  // zero input
+        
+        #10;
+        #10; // cycle 7, stop routing
+        
         i_pe_en = 0;
-
-        #10;
-        i_psum_out_en = 1; // Enable output of psum
+        i_psum_out_en = 1; // Enable output of psum -> show first row of systolic array
+        
         #10
-        i_scan_en = 1; // Enable scan mode
+        i_scan_en = 1; // Enable scan mode -> rows bubble up. Row 3 becomes row 2, row 2 becomes row 1, etc.
         i_psum_out_en = 0;
         // Allow the systolic array to propagate data
-        #50;
+        #30;
 
         $finish;
     end
+    
+    
+    // TCL Logging
+    integer cycle;
+
+    always_ff @(posedge i_clk) begin
+        if (!i_nrst)
+            cycle <= 0;
+        else
+            cycle <= cycle + 1;
+    end
+    
+    
+    always_ff @(posedge i_clk) begin
+        if (i_pe_en) begin
+            $write("[cycle %0d] i_ifmap:", cycle);
+            for (int h = 0; h < HEIGHT; h++) begin
+                $write(" %0d", i_ifmap[h]);
+            end
+    
+            $write(" | i_weight:");
+            for (int w = 0; w < WIDTH; w++) begin
+                $write(" %0d", i_weight[w]);
+            end
+    
+            $write("\n");
+        end
+    end
+
+    always_ff @(posedge i_clk) begin
+        if (i_scan_en) begin
+            $write("[cycle %0d] o_ofmap:", cycle);
+            for (int w = 0; w < WIDTH; w++) begin
+                $write(" %0d", o_ofmap[w]);
+            end
+            $write("\n");
+        end
+    end
+        
 
 endmodule

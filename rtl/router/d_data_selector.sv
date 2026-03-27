@@ -12,12 +12,12 @@ module d_data_selector #(
 
     // Controller signals
     // Write to MPP FIFO
-    input [0:MPP_DEPTH-1][ADDR_WIDTH-1:0] i_sw_addr,
+    input [0:MPP_DEPTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_sw_addr,
     input logic i_addr_write_en,
 
     // Spad signals
     input logic [SPAD_DATA_WIDTH-1:0] i_spad_data,
-    input logic [0:SPAD_N-1][ADDR_WIDTH-1:0] i_spad_addr,
+    input logic [0:SPAD_N-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_spad_addr,
     input logic i_data_valid,
 
     // Data selector signals
@@ -27,8 +27,8 @@ module d_data_selector #(
     output logic o_route_done
 );
     logic [0:SPAD_N-1][DATA_WIDTH-1:0] spad_data;
-    logic [0:SPAD_N-1][ADDR_WIDTH-1:0] spad_addr;
-    logic [SPAD_N-1:0][ADDR_WIDTH-1:0] peek_addr;
+    logic [0:SPAD_N-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] spad_addr;
+    logic [SPAD_N-1:0][$clog2(SPAD_N)+ADDR_WIDTH-1:0] peek_addr;
     logic [SPAD_N-1:0] peek_valid;
 
     genvar ii;
@@ -51,7 +51,7 @@ module d_data_selector #(
 
     mpp_fifo #(
         .DEPTH(MPP_DEPTH),
-        .DATA_WIDTH(ADDR_WIDTH),
+        .DATA_WIDTH($clog2(SPAD_N)+ADDR_WIDTH), // Each entry contains the byte address of a SPAD data element
         .DATA_LENGTH(MPP_DEPTH),
         .PEEK_WIDTH(SPAD_N)
     ) mpp_fifo (

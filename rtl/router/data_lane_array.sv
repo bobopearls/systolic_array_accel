@@ -14,12 +14,13 @@ module data_lane_array #(
     input logic i_fifo_clear,
     input logic i_fifo_ptr_reset,
     input logic i_conv_mode, // Convolution mode - 0: PWise, 1: DWise
-
+    input logic [DATA_WIDTH-1:0] i_zero_offset,
+    
     // Address Reference
     input logic [ADDR_WIDTH-1:0] i_id,
-    input [0:MPP_DEPTH-1][ADDR_WIDTH-1:0] i_sw_addr,
-    input logic [ADDR_WIDTH-1:0] i_start_addr,
-    input logic [ADDR_WIDTH-1:0] i_end_addr,
+    input [0:MPP_DEPTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_sw_addr,
+    input logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_start_addr,
+    input logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_end_addr,
     input logic i_addr_write_en,
 
     // Address Comparator
@@ -32,7 +33,7 @@ module data_lane_array #(
     input i_miso_pop_en,
     input logic [1:0] i_p_mode,
     output logic [COUNT-1:0][DATA_WIDTH-1:0] o_data,
-    output logic [ADDR_WIDTH-1:0] o_slots,
+    output logic [$clog2(MISO_DEPTH):0] o_slots,
 
     // Status signals
     output logic [COUNT-1:0] o_data_valid,
@@ -43,7 +44,7 @@ module data_lane_array #(
 );
     logic [COUNT-1:0] counter, rr_pop_en;
     logic [COUNT-1:0] rr_data_empty, rr_data_valid, rr_miso_full, rr_route_done, rr_idle;
-    logic [COUNT-1:0][ADDR_WIDTH-1:0] rr_slots;
+    logic [COUNT-1:0][$clog2(MISO_DEPTH):0] rr_slots;
 
     // Stalled popping logic
     always_ff @ (posedge i_clk or negedge i_nrst) begin
@@ -98,6 +99,7 @@ module data_lane_array #(
                 .i_data_valid(i_data_valid),
                 .i_addr(i_addr),
                 .i_p_mode(i_p_mode),
+                .i_zero_offset(i_zero_offset),
                 .o_data(o_data[ii]),
                 .o_miso_empty(rr_data_empty[ii]),
                 .o_miso_full(rr_miso_full[ii]),

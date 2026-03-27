@@ -50,8 +50,13 @@ module top_controller # (
     output logic o_s_reg_clear,
     output logic o_or_reg_clear,
 
+    // Convolution mode
+    input logic i_conv_mode, // 0 for pointwise, 1 for depthwise
+
     // Dimensions
     output logic [ADDR_WIDTH-1:0] o_o_c,
+    output logic [ADDR_WIDTH-1:0] o_i_c,
+    input logic [ADDR_WIDTH-1:0] i_i_c_size,
     input logic [ADDR_WIDTH-1:0] i_s_r,
     input logic [ADDR_WIDTH-1:0] i_s_c,
     input logic [ADDR_WIDTH-1:0] i_t,
@@ -65,7 +70,7 @@ module top_controller # (
 );
     logic [2:0] state;
     assign o_state = state;
-    logic [ROWS:0] cntr;
+    logic [(ROWS > COLUMNS ? ROWS : COLUMNS):0] cntr;   // Counter to keep track of compute cycles
 
     logic [ADDR_WIDTH-1:0] max_compute_cycles;
 
@@ -102,6 +107,7 @@ module top_controller # (
             o_wr_reg_clear <= 0;
             o_or_reg_clear <= 0;
             o_o_c <= 0;
+            o_i_c <= 0;
             o_done <= 0;
             o_s_reg_clear <= 0;
             max_compute_cycles <= 0;
@@ -121,6 +127,7 @@ module top_controller # (
             o_wr_reg_clear <= 0;
             o_or_reg_clear <= 0;
             o_o_c <= 0;
+            o_i_c <= 0;
             o_done <= 0;
             o_s_reg_clear <= 0;
             max_compute_cycles <= 0;
@@ -131,20 +138,50 @@ module top_controller # (
                 IDLE: begin
                     o_s_reg_clear <= 0;
                     o_or_reg_clear <= 0;
-                    if (i_wr_done & i_ir_done) begin
-                        o_done <= 1;
-                    end else if (i_route_en) begin
-                        if (i_ir_done) begin
-                            o_ir_reg_clear <= 1;
-                            o_o_c <= o_o_c + COLUMNS;
-                        end else begin
-                            o_o_c <= o_o_c;
-                        end
+                    if (i_conv_mode == 0) begin
+                        // Pointwise convolution
+                        if (i_wr_done & i_ir_done) begin
+                            o_done <= 1;
+                        end else if (i_route_en) begin
+                            if (i_ir_done) begin
+                                o_ir_reg_clear <= 1;
+                                o_o_c <= o_o_c + COLUMNS;
+                            end else begin
+                                o_o_c <= o_o_c;
+                            end
 
-                        if (i_ir_tile_done) begin
-                            o_wr_reg_clear <= 1;
+                            if (i_ir_tile_done) begin
+                                o_wr_reg_clear <= 1;
+                            end
+                            state <= CLEAR;
                         end
-                        state <= CLEAR;
+                    end else begin
+                        // Depthwise convolution, we need to iterate through both input and output channels
+                        if (i_route_en) begin
+                            if (i_wr_done & i_ir_done) begin
+                                if (o_i_c == i_i_c_size - 1) begin
+                                    o_done <= 1;
+                                end
+                                else begin
+                                    o_i_c = o_i_c + 1;
+                                    o_ir_reg_clear <= 1;
+                                    o_wr_reg_clear <= 1;
+                                    state <= CLEAR;
+                                end
+                            end else begin
+                                if (i_ir_done) begin
+                                    o_ir_reg_clear <= 1;
+                                    o_o_c <= o_o_c + COLUMNS;
+                                end else begin
+                                    o_o_c <= o_o_c;
+                                end
+
+                                if (i_ir_tile_done) begin
+                                    o_wr_reg_clear <= 1;
+                                end
+                                state <= CLEAR;
+                            end
+                        end
                     end
                 end
 
@@ -195,8 +232,15 @@ module top_controller # (
                     end else begin
                         o_pe_en <= 0;
                         cntr <= 0;
-                        o_psum_out_en <= 1;
-                        state <= OUTPUT_ROUTING;
+                        
+                        // If tile done, then we can start routing out the psum, otherwise we are still waiting for more input
+                        if (i_ir_tile_done) begin
+                            o_psum_out_en <= 1;
+                            state <= OUTPUT_ROUTING;
+                        end else begin
+                            o_psum_out_en <= 0;
+                            state <= IDLE;
+                        end
                     end
                 end
 

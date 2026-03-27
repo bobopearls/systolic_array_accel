@@ -11,13 +11,13 @@ module p_data_selector #(
     input logic i_en,
 
     // Controller signals
-    input [ADDR_WIDTH-1:0] i_start_addr,
-    input [ADDR_WIDTH-1:0] i_end_addr,
+    input [$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_start_addr,
+    input [$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_end_addr,
     input logic i_addr_write_en,
 
     // Spad signals
     input logic [SPAD_DATA_WIDTH-1:0] i_spad_data,
-    input logic [0:SPAD_N-1][ADDR_WIDTH-1:0] i_spad_addr,
+    input logic [0:SPAD_N-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_spad_addr,
     input logic i_data_valid,
 
     // Data selector signals
@@ -30,9 +30,9 @@ module p_data_selector #(
     input logic [$clog2(MISO_DEPTH):0] i_miso_slots,
     input logic i_miso_full
 );
-    logic [ADDR_WIDTH-1:0] start_addr, end_addr;
-    logic [ADDR_WIDTH-1:0] addr_offset;
-    logic [0:SPAD_N-1][ADDR_WIDTH-1:0] spad_addr;
+    logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] start_addr, end_addr;
+    logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] addr_offset;
+    logic [0:SPAD_N-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] spad_addr;
     logic [SPAD_N-1:0] data_hit;
 
     logic [SPAD_N-1:0] lower_bit;

@@ -31,7 +31,6 @@ module top #(
     input logic [ADDR_WIDTH-1:0] i_i_size,
     input logic [ADDR_WIDTH-1:0] i_i_c_size,
     input logic [ADDR_WIDTH-1:0] i_o_c_size,
-    input logic [ADDR_WIDTH-1:0] i_i_c,
     input logic [ADDR_WIDTH-1:0] i_o_size,
     input logic [ADDR_WIDTH-1:0] i_stride,
 
@@ -90,7 +89,7 @@ module top #(
     logic ir_reg_clear, wr_reg_clear, s_reg_clear, or_reg_clear;
     logic pe_en, psum_out_en, scan_en;
     logic output_done;
-    logic [ADDR_WIDTH-1:0] o_c;
+    logic [ADDR_WIDTH-1:0] o_c, i_c;
 
     // Instantiate input router
     logic [ROWS-1:0] ir_data_valid;
@@ -120,7 +119,7 @@ module top #(
         end
     endgenerate
 
-    logic [0:ROWS-1][DATA_WIDTH*2-1:0] ofmap;
+    logic [0:COLUMNS-1][DATA_WIDTH*2-1:0] ofmap;
 
     // Input router to Output router
     logic [ADDR_WIDTH-1:0] x_s, x_e, y_s, y_e;
@@ -139,7 +138,7 @@ module top #(
 
     logic [ADDR_WIDTH-1:0] xy_length;
 
-    logic [  DATA_WIDTH-1:0] quant_sh = {8'h05};
+    logic [  DATA_WIDTH-1:0] quant_sh = {8'h05}; // 8'h05;
     logic [2*DATA_WIDTH-1:0] quant_m0 = {16'h9c8c};
 
     logic [ADDR_WIDTH-1:0] s_r, s_c, s_t;
@@ -171,6 +170,9 @@ module top #(
         .o_s_reg_clear(s_reg_clear),
         .o_or_reg_clear(or_reg_clear),
         .o_o_c(o_c),
+        .o_i_c(i_c),
+        .i_i_c_size(i_i_c_size),
+        .i_conv_mode(i_conv_mode),
         .i_ir_done(ir_done),
         .i_wr_done(wr_done),
         .i_or_done(or_done),
@@ -201,7 +203,7 @@ module top #(
         .i_i_size(i_i_size),
         .i_o_size(i_o_size),
         .i_i_c_size(i_i_c_size),
-        .i_i_c(i_i_c),
+        .i_i_c(i_c),
         .i_stride(i_stride),
         .i_spad_write_en(spad_i_write_en),
         .i_spad_data_in(i_data_in),
@@ -245,7 +247,7 @@ module top #(
         .i_o_c(o_c),
         .i_i_c_size(i_i_c_size),
         .i_o_c_size(i_o_c_size),
-        .i_i_c(i_i_c),
+        .i_i_c(i_c),
         .i_spad_write_en(spad_w_write_en),
         .i_spad_data_in(i_data_in),
         .i_spad_write_addr(i_write_addr),
@@ -296,7 +298,7 @@ module top #(
         .i_ifmap(ofmap),
         .i_valid(),
         .o_shift_en(s_shift_en),
-        .i_i_size(i_i_size),
+        .i_o_size(i_o_size),
         .i_c_size(i_o_c_size),
         .i_x_s(x_s),
         .i_x_e(x_e),
@@ -304,6 +306,7 @@ module top #(
         .i_y_e(y_e),
         .i_xy_valid(xy_valid),
         .i_xy_length(xy_length),
+        .i_i_c(i_c),
         .i_c_s(c_s),
         .i_c_e(c_e),
         .i_c_valid(c_valid),

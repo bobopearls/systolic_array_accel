@@ -20,12 +20,13 @@ module data_lane #(
     input logic i_conv_mode, // Convolution mode - 0: PWise, 1: DWise
     
     input logic i_addr_write_en,
+    input logic [DATA_WIDTH-1:0] i_zero_offset,
 
     // Pwise Address Reference
-    input [ADDR_WIDTH-1:0] i_start_addr, i_end_addr,
+    input [$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_start_addr, i_end_addr,
     
     // Dwise Address Reference
-    input [0:MPP_DEPTH-1][ADDR_WIDTH-1:0] i_sw_addr,
+    input [0:MPP_DEPTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_sw_addr,
     
     // Tile Reader Signals
     input logic [SPAD_DATA_WIDTH-1:0] i_data,
@@ -40,10 +41,10 @@ module data_lane #(
     output logic o_route_done,
     output logic o_idle,
     output logic o_valid,
-    output logic [ADDR_WIDTH-1:0] o_slots
+    output logic [$clog2(MISO_DEPTH):0] o_slots
 );
     // Reformat address from 2D to 1D
-    logic [0:SPAD_N-1][ADDR_WIDTH-1:0] spad_addr;
+    logic [0:SPAD_N-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] spad_addr;
     genvar ii;
     generate
         for (ii=0; ii < SPAD_N; ii++) begin
@@ -157,6 +158,7 @@ module data_lane #(
         .i_p_mode(i_p_mode),
         .i_data(f_data),
         .i_valid(f_data_hit),
+        .i_zero_offset(i_zero_offset),
         .o_data(o_data),
         .o_empty(miso_empty),
         .o_full(miso_full),
