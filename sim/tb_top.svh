@@ -1,0 +1,8 @@
+
+`define INPUT_SIZE 4
+`define INPUT_CHANNELS 16
+`define OUTPUT_CHANNELS 16
+`define OUTPUT_SIZE 4
+`define STRIDE 1
+`define PRECISION 0
+`define CONV_MODE 0

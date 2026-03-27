@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
 `include "../rtl/global.svh"
+`include "tb_top.svh"
 
 module tb_top;
     localparam int SRAM_DATA_WIDTH = `SPAD_DATA_WIDTH;
@@ -69,7 +70,7 @@ module tb_top;
         .i_o_size(o_size),
         .i_i_c_size(i_c_size),
         .i_o_c_size(o_c_size),
-        .i_i_c(i_c),
+        //.i_i_c(i_c),
         .i_stride(i_stride),
         .i_i_start_addr(i_i_start_addr),
         .i_i_addr_end(i_i_addr_end),
@@ -104,8 +105,8 @@ module tb_top;
 
     // Testbench initialization
     initial begin
-        $set_toggle_region(dut);
-        $toggle_start();
+        //$set_toggle_region(dut);
+        //$toggle_start();
         // Default values
         i_nrst = 0;
         i_reg_clear = 0;
@@ -119,13 +120,23 @@ module tb_top;
         i_route_size = 9;
         i_route_en = 0;
 
+        /*
         if (!$value$plusargs("CONV_MODE=%d", i_conv_mode)) i_conv_mode = 0;
         if (!$value$plusargs("INPUT_SIZE=%d", input_size)) input_size = 0;
         if (!$value$plusargs("INPUT_CHANNELS=%d", input_channels)) input_channels = 0;
         if (!$value$plusargs("OUTPUT_CHANNELS=%d", output_channels)) output_channels = 0;
         if (!$value$plusargs("OUTPUT_SIZE=%d", output_size)) output_size = 0;
         if (!$value$plusargs("STRIDE=%d", stride)) stride = 1;
-        if (!$value$plusargs("PRECISION=%d", precision)) precision = 8;
+        if (!$value$plusargs("PRECISION=%d", precision)) precision = 0;
+        */
+        i_conv_mode = `CONV_MODE;
+        input_size = `INPUT_SIZE;
+        input_channels = `INPUT_CHANNELS;
+        output_channels = `OUTPUT_CHANNELS;
+        output_size = `OUTPUT_SIZE;
+        stride = `STRIDE;
+        precision = `PRECISION;
+        
         if (!$value$plusargs("LAYER_IDENTIFIER=%d", layer_identifier)) layer_identifier = 0;
 
         // Strings (for file paths)
@@ -137,22 +148,22 @@ module tb_top;
         i_size = input_size;
         i_c_size = input_channels;
         o_c_size = output_channels;
-        i_c = 0;
+        //i_c = 0;
         o_size = output_size;
         i_stride = stride;
         p_mode = precision;
 
         write_spad_counter = 0;
-        #10;
+        #200;
         i_nrst = 1;
-
-        // // Open output file
-        // output_file = $fopen(out_file, "w");
-        // if (output_file == 0) begin
-        //     $display("Error opening output file!");
-        //     $finish;
-        // end
-
+        
+        // Open output file
+        output_file = $fopen("C:/Users/Aaron/Documents/EEE196/ps-cnn-accelerator/sim/output.txt", "w");
+        if (output_file == 0) begin
+            $display("Error opening output file!");
+            $finish;
+        end
+        
         cycle_stats = $fopen(cycle_file, "a");
         if (cycle_stats == 0) begin
             $display("ERROR: Failed to open file.");
@@ -207,7 +218,9 @@ module tb_top;
         end
         i_i_addr_end = i_write_addr - 1;
         i_write_en = 0;
-
+        #10;
+        i_write_addr = 0;
+        $fclose(file);
 
         @(posedge i_clk); // wait for one clock cycle
         i_route_en = 1;
@@ -216,7 +229,9 @@ module tb_top;
     // Monitor and write to output file whenever o_ofmap_valid is high
     always @(posedge i_clk) begin
         if (o_word_valid) begin
-            $fwrite(output_file, "%h, %h, %h, %h, %h, %b\n", o_o_x, o_o_y, o_o_c, o_word_addr, o_word, o_word_byte_offset);
+            //$fwrite(output_file, "%h, %h, %h, %h, %h, %b\n", o_o_x, o_o_y, o_o_c, o_word_addr, o_word, o_word_byte_offset);
+            $display("%h, %h, %h, %h, %h, %b", o_o_x, o_o_y, o_o_c, o_word_addr, o_word, o_word_byte_offset);
+            //$write("%h\n", o_word);
         end
     end
 
@@ -248,26 +263,46 @@ module tb_top;
 
     // // Terminate simulation when o_done is high
     always @(posedge i_clk) begin
-        if (o_done) begin
-            $toggle_stop();
-            $toggle_report("toggle_report.saif",1e-12, dut);
-            $display("Simulation completed: o_done asserted.");
-            $display("Total cycles: %d", counter);
-
-            if (precision == 0) begin
-                precision_display = 8;
-            end else if (precision == 1) begin
-                precision_display = 4;
-            end else if (precision == 2) begin
-                precision_display = 2;
+        if (o_done) /*begin
+            if (i_conv_mode && (i_c < i_c_size - 1)) begin
+                i_c <= i_c + 1;
+                i_nrst <= 0;
+                #200;
+                i_nrst <= 1;
+                i_route_en <= 1;
             end
+            else */begin            
+                //$toggle_stop();
+                //$toggle_report("toggle_report.saif",1e-12, dut);
+                $display("Simulation completed: o_done asserted.");
+                $display("Total cycles: %d", counter);
 
-            $fwrite(cycle_stats, "%0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d\n", layer_identifier, precision_display, counter, no_or_counter, write_spad_counter, activation_routing_counter, compute_counter, output_routing_counter, memory_read_counter);
-            
-            $fclose(cycle_stats);
-            $fclose(output_file);
+                if (precision == 0) begin
+                    precision_display = 8;
+                end else if (precision == 1) begin
+                    precision_display = 4;
+                end else if (precision == 2) begin
+                    precision_display = 2;
+                end            
 
-            $finish;
+                $fwrite(cycle_stats, "%0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d, %0d\n", layer_identifier, precision_display, counter, no_or_counter, write_spad_counter, activation_routing_counter, compute_counter, output_routing_counter, memory_read_counter);
+                
+                $fclose(cycle_stats);
+                
+                
+                for (int i = 0; i < ((output_size*output_size*output_channels+SPAD_N-1)/SPAD_N); i++) begin
+                    $fdisplay(output_file, "%h", tb_top.dut.or_spad.buffer[i]);
+                    //$write("%h\n", tb_top.dut.or_spad.buffer[i]);
+                end
+                
+                /*
+                for (int i = 0; i < (input_size*input_size*input_channels/SPAD_N); i++) begin
+                    $write("Row %0d: %h\n", i, tb_top.dut.ir_inst.ir_spad.buffer[i]);
+                end
+                */
+                $fclose(output_file);
+                $finish;
+            end
         end
-    end
+    //end
 endmodule
