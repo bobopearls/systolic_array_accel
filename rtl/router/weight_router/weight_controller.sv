@@ -73,7 +73,7 @@ module wr_controller #(
     logic [ADDR_WIDTH-1:0] d_tile_addr, p_tile_addr;
     assign route_en = i_en & i_fifo_empty;
     assign c_increment = o_c < i_o_c_size - 1;
-    assign d_tile_addr = i_start_addr;
+    assign d_tile_addr = addr[0] >> $clog2(SPAD_N); // Assuming the first address corresponds to the first tile. See code below for address generation
     assign p_tile_addr = ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N);
 
     logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] addr;

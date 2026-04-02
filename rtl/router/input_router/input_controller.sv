@@ -90,7 +90,7 @@ module ir_controller #(
     assign y_increment = o_y < (i_o_size * i_stride) - i_stride;
     assign xy_increment = x_increment || y_increment;
 
-    assign d_tile_addr = addr[0] >> $clog2(SPAD_N); // Assuming the first address corresponds to the first tile, see code below for address generation
+    assign d_tile_addr = addr[0] >> $clog2(SPAD_N); // Assuming the first address corresponds to the first tile. See code below for address generation
     assign p_tile_addr = (prev_addr + (i_start_addr * SPAD_N)) >> $clog2(SPAD_N);
 
     logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] addr;
