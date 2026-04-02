@@ -18,10 +18,12 @@ def generate_sequential_array(input_size, precision):
     return array_2d
 
 def generate_random_array(input_size, precision, max_value):
-    limit = 1 << (precision-1) # account for signed values
-    max_value = min(max_value, limit-1)
+    limit = 1 << (precision-1)                  # account for signed values
+    max_value_offset = min(max_value, limit-1) - 128   # account for zero point adjustment
+    #print(f"Generating random array with max value {max_value_offset} to avoid overflow after quantization")
+    
     total_elements = input_size * input_size
-    array_1d = [int(random.uniform(-128,-1)) for _ in range(total_elements)]
+    array_1d = [int(random.uniform(-128,max_value_offset)) for _ in range(total_elements)] # without offset, values are [0, max_value]
     
     array_2d = []
     for row_index in range(input_size):
@@ -56,12 +58,12 @@ def pointwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, s
     output_file = "golden_output.txt"
 
     # print input dimensions and parameters
-    print(f"Input dimensions: H={H}, W={W}, C={C}")
+    # print(f"Input dimensions: H={H}, W={W}, C={C}")
     # Output spatial dimensions for no-padding conv: floor((H - 1)/stride) + 1
     H_out = (H - 1) // stride + 1
     W_out = (W - 1) // stride + 1
-    print(stride)
-    print(f"Output dimensions will be: H_out={H_out}, W_out={W_out}, C_out={C_out}")
+    # print(stride)
+    # print(f"Output dimensions will be: H_out={H_out}, W_out={W_out}, C_out={C_out}")
 
     # Allocate output matrix in HWC format (H_out x W_out x C_out)
     product = [[[0 for _ in range(C_out)] for _ in range(W_out)] for _ in range(H_out)]
@@ -87,12 +89,13 @@ def pointwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, s
                 elif quant > 127:
                     quant = 127
                 
-                print(f"Output pixel ({h_out}, {w_out}, {c}): result={result}, quantized={quant}")
+                # print(f"Output pixel ({h_out}, {w_out}, {c}): result={result}, quantized={quant}")
                 product[h_out][w_out][c] = quant
 
     end = time()
     print(f"Golden output computed in {end - start:.10f} seconds")
-    print(product)
+    # print(product)
+    
     # 2) Write to file grouping spad_n elements per line
     with open(output_file, "w") as f:
         line_buffer = []
@@ -101,9 +104,7 @@ def pointwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, s
             for w_out in range(W_out):
                 for c in range(C_out):
                     val = product[h_out][w_out][c]
-                    if val < 0:     # convert to unsigned representation for hex output
-                        val += (1 << 8)     # assume 8-bit precision for output for now
-                    line_buffer.append(f"{val:02x}")
+                    line_buffer.append(f"{to_precision(val, 8, signed=False):02x}")
 
                     if len(line_buffer) == spad_n:
                         f.write("".join(reversed(line_buffer)) + "\n")
@@ -117,7 +118,7 @@ def pointwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, s
 
     print("Golden output written successfully")
 
-def depthwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, stride=1):
+def depthwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, sh, stride=1, i_zero_point=-128, o_zero_point=-128):
     # Modify this to account for changes in quantization, like in pointwise convolution
     H = len(ifmap)          # Input rows
     W = len(ifmap[0])       # Input columns
@@ -127,7 +128,7 @@ def depthwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, strid
     C_in  = len(kernel[0])
     output_file = "golden_output.txt"
 
-    # Output spatial dimensions for no-padding conv: floor((H - 3)/stride) + 1
+    # Output spatial dimensions for no-padding conv: floor((H - 3)/stride) + 1, assume input is already padded
     H_out = (H - 3) // stride + 1 # account for 3x3 kernel
     W_out = (W - 3) // stride + 1 # account for 3x3 kernel
 
@@ -147,12 +148,15 @@ def depthwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, strid
                 for ki in range(3):
                     for kj in range(3):
                         # print(f"Processing output pixel ({h}, {w}, {c}), kernel position ({ki}, {kj})")
-                        input_val  = to_precision(ifmap[h_start + ki][w_start + kj][c], 8)
+                        input_val  = to_precision(ifmap[h_start + ki][w_start + kj][c], 8) - i_zero_point
                         kernel_val = to_precision(kernel[ki*3+kj][c], 8)
                         sum_value += input_val * kernel_val
 
-                quant = (to_precision(sum_value, 16, signed=False) * 40076) >> (16 + 3)
-                quant = quant if quant < 256 else 255
+                quant = ((to_precision(sum_value, 16) * m0) >> (16 + sh)) + o_zero_point
+                if quant < -128:
+                    quant = -128
+                elif quant > 127:
+                    quant = 127
 
                 product[h][w][c] = quant
 
@@ -167,7 +171,7 @@ def depthwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, strid
             for w_out in range(W_out):
                 for c in range(C_in):
                     val = product[h_out][w_out][c]
-                    line_buffer.append(f"{val:02x}")
+                    line_buffer.append(f"{to_precision(val, 8, signed=False):02x}")
 
                     if len(line_buffer) == spad_n:
                         f.write("".join(reversed(line_buffer)) + "\n")
@@ -205,7 +209,7 @@ def sram_hex_to_mem(array, n, filename):
                 # Slice the array to get the group
                 group = array[i:i + n]
                 # Reverse the group, convert each element to hex, and join as a single string
-                hex_string = ''.join(f"{(x + (1 << 8)) if x < 0 else x:02x}" for x in reversed(group))
+                hex_string = ''.join(f"{to_precision(x, 8, signed=False):02x}" for x in reversed(group))
                 file.write(hex_string + '\n')
         
         print(f"Data successfully written to {filename}")
@@ -219,7 +223,7 @@ def write_testbench_parameters(input_size, input_channels, output_channels, stri
     elif precision == 2:
         p_mode = 2
 
-    # compute output size for no-padding convolution with kernel size 1
+    # compute output size for no-padding convolution, i.e. assume input is already padded
     if conv_mode == 0:
         output_size = (input_size - 1) // stride + 1
     else: 
@@ -277,15 +281,28 @@ def main():
     m0 = 40076
     sh = 5
 
+    # Fake Padding
+    if conv_mode == 1: # depthwise convolution
+        # padding = kernel - stride,         for input_size % stride == 0 (which is true for person detection model)
+        padding = 3 - stride # assuming 3x3 kernel 
+        input_size += padding
+        # in reality, we would need to add zero padding to the input feature map 
+        # but for simplicity we will just increase the input size and generate random data for the padded region.
+
+    # Generate random input data
     ifmap = []
-    ifmap_max_value = 127 / (input_channels*5*m0/2**(16+sh))
-    print(ifmap_max_value)
+    if conv_mode == 0: # pointwise convolution
+        ifmap_max_value = 127 / (input_channels*3*m0/2**(16+sh)) # to avoid overflow. assumes kernel values are in range [-3, 3]
+    else: # depthwise convolution
+        ifmap_max_value = 127 / (9*3*m0/2**(16+sh))              # to avoid overflow. assumes kernel values are in range [-3, 3] and 3x3=9 kernel size
+    # print(ifmap_max_value)
     for _ in range(input_channels):
         # ifmap.append(generate_sequential_array(input_size, 8))
         ifmap.append(generate_random_array(input_size, 8, ifmap_max_value))
 
     ifmap = convert_nchw_to_nhwc(ifmap)
 
+    # Generate random kernel data
     # Already in NHWC format
     kernel = []
     if conv_mode == 0: # pointwise convolution
@@ -297,8 +314,8 @@ def main():
             # kernel.append([2*(i+1)] * 1)
             kernel.append([int(random.uniform(-3,3))] * input_channels)
 
-    print(ifmap)
-    print(kernel)
+    #print(f"ifmap: {ifmap}")
+    #print(f"kernel: {kernel}")
     k_flat = flatten_2d_array(kernel)
     i_flat = flatten_3d_array(ifmap)
 
@@ -331,7 +348,7 @@ def main():
     if conv_mode == 0: # pointwise convolution
         golden_output = pointwise_convolution_nhwc(ifmap, kernel, c_tile, hw_tile, spad_n, m0, sh, stride, i_zero_point=-128, o_zero_point=-128)
     else: # depthwise convolution
-        golden_output = depthwise_convolution_nhwc(ifmap, kernel, c_tile, hw_tile, spad_n, m0, sh, stride)
+        golden_output = depthwise_convolution_nhwc(ifmap, kernel, c_tile, hw_tile, spad_n, m0, sh, stride, i_zero_point=-128, o_zero_point=-128)
 
     return
 
