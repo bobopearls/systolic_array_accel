@@ -19,6 +19,7 @@ module wr_controller #(
     input logic [ADDR_WIDTH-1:0] i_i_c_size,
     input logic [ADDR_WIDTH-1:0] i_o_c_size,
     input logic [ADDR_WIDTH-1:0] i_i_c,
+    input logic [ADDR_WIDTH-1:0] i_depth_mult, // Only used for DW. Ignored for PW.
     input logic [ADDR_WIDTH-1:0] i_start_addr,
 
     // Data lane address assignment
@@ -72,8 +73,8 @@ module wr_controller #(
     logic clear_type; // 0 - Clear all, 1 - Clear only FIFO
     logic [ADDR_WIDTH-1:0] d_tile_addr, p_tile_addr;
     assign route_en = i_en & i_fifo_empty;
-    assign c_increment = o_c < i_o_c_size - 1;
-    assign d_tile_addr = addr[0] >> $clog2(SPAD_N); // Assuming the first address corresponds to the first tile. See code below for address generation
+    assign c_increment = (i_conv_mode) ? (o_c < i_depth_mult - 1) : (o_c < i_o_c_size - 1);     // If DW, we need to increment c until we reach the depth multiplier. If PW, we need to increment until we reach the output channel size
+    assign d_tile_addr = addr[0] >> $clog2(SPAD_N);                                             // Assuming the first address corresponds to the first tile. See code below for address generation
     assign p_tile_addr = ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N);
 
     logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] addr;
@@ -206,38 +207,26 @@ module wr_controller #(
 
                 C_INCREMENT: begin
                     o_dl_addr_write_en <= 0;
-                    if (i_conv_mode) begin
-                        // Dwise
-                        // We don't need to increment the channel
-                        // Since we need only one channel at a time
-                        o_dl_id <= 0;
-                        o_done <= 1;
-                        state <= TILE_COMPARISON;
+                    if (c_increment) begin
+                        o_c <= o_c + 1;
                     end else begin
-                        // Pwise
-                        if (c_increment) begin
-                            o_c <= o_c + 1;
-                        end else begin
-                            o_c <= 0;
-                            o_c_e <= o_c;
-                            o_c_valid <= 1;
-                            c_done <= 1;
-                            state <= TILE_COMPARISON;
-                        end
-
-                        if (o_dl_id == COLUMN - 1) begin
-                            o_dl_id <= 0;
-                            o_c_e <= o_c;
-                            o_c_valid <= 1;
-                            o_s_c <= o_dl_id;
-                            state <= TILE_COMPARISON;
-                        end else if (c_increment) begin
-                            o_dl_id <= o_dl_id + 1;
-                            state <= ADDRESS_GENERATION;
-                        end
+                        o_c <= 0;
+                        o_c_e <= o_c;
+                        o_c_valid <= 1;
+                        c_done <= 1;
+                        state <= TILE_COMPARISON;
                     end
 
-
+                    if (o_dl_id == COLUMN - 1) begin
+                        o_dl_id <= 0;
+                        o_c_e <= o_c;
+                        o_c_valid <= 1;
+                        o_s_c <= o_dl_id;
+                        state <= TILE_COMPARISON;
+                    end else if (c_increment) begin
+                        o_dl_id <= o_dl_id + 1;
+                        state <= ADDRESS_GENERATION;
+                    end
                 end
 
                 TILE_COMPARISON: begin
@@ -280,7 +269,7 @@ module wr_controller #(
                 always_comb begin
                     if (i_conv_mode) begin
                         // o_c, i_i_c, i_i_c_size
-                        addr[addr_idx] = (i_start_addr * SPAD_N) + (x * KERNEL_SIZE) * i_i_c_size + y * i_i_c_size + i_i_c;
+                        addr[addr_idx] = (i_start_addr * SPAD_N) + (x * KERNEL_SIZE + y) * i_o_c_size + i_i_c * i_depth_mult + o_c;
                     end else begin
                         addr[addr_idx] = '0;
                     end
