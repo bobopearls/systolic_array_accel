@@ -22,7 +22,7 @@ module tb_top;
     // File-related variables
     integer file, r, output_file;
     integer cycle_stats;
-    int input_size, input_channels, output_channels, output_size, stride, precision, layer_identifier;
+    int input_size, input_channels, output_channels, output_size, stride, precision, layer_identifier, depth_mult;
 
 
     string input_file, weight_file, cycle_file, out_file;
@@ -36,7 +36,7 @@ module tb_top;
     logic [SRAM_DATA_WIDTH-1:0] i_data_in;
     logic [ADDR_WIDTH-1:0] i_write_addr;
     logic [ADDR_WIDTH-1:0] i_i_start_addr, i_i_addr_end;
-    logic [ADDR_WIDTH-1:0] i_size, o_size, i_stride, i_c_size, i_c, o_c_size; 
+    logic [ADDR_WIDTH-1:0] i_size, o_size, i_stride, i_c_size, i_c, o_c_size, i_depth_mult; 
     logic [ADDR_WIDTH-1:0] i_w_start_addr, i_w_addr_end, i_route_size;
     logic [SRAM_DATA_WIDTH-1:0] o_word;
     logic o_word_valid;
@@ -72,6 +72,7 @@ module tb_top;
         .i_o_c_size(o_c_size),
         //.i_i_c(i_c),
         .i_stride(i_stride),
+        .i_depth_mult(i_depth_mult),
         .i_i_start_addr(i_i_start_addr),
         .i_i_addr_end(i_i_addr_end),
         .i_w_start_addr(i_w_start_addr),
@@ -136,6 +137,7 @@ module tb_top;
         output_size = `OUTPUT_SIZE;
         stride = `STRIDE;
         precision = `PRECISION;
+        depth_mult = `DEPTH_MULT;
         
         if (!$value$plusargs("LAYER_IDENTIFIER=%d", layer_identifier)) layer_identifier = 0;
 
@@ -152,6 +154,7 @@ module tb_top;
         o_size = output_size;
         i_stride = stride;
         p_mode = precision;
+        i_depth_mult = depth_mult;
 
         write_spad_counter = 0;
         #200;
