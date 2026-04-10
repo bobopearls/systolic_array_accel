@@ -23,8 +23,9 @@ module output_router #(
     // Address generation
     // Top module inputs
     input logic  [ADDR_WIDTH-1:0] i_o_size,
-    input logic  [ADDR_WIDTH-1:0] i_c_size,
+    input logic  [ADDR_WIDTH-1:0] i_o_c_size,
     input logic  [ADDR_WIDTH-1:0] i_i_c,
+    input logic  [ADDR_WIDTH-1:0] i_depth_mult, // Only used for DW. Ignored for PW.
     // Input router inputs (tile xy dimensions)
     input  logic [ADDR_WIDTH-1:0] i_x_s,
     input  logic [ADDR_WIDTH-1:0] i_x_e,
@@ -75,7 +76,7 @@ module output_router #(
     logic [SPAD_N-1:0] byte_offset;     // which byte in the word
     // address = n*HWC + h*WC + w*C + c
     always_comb begin
-        byte_addr   = (current_x * i_o_size + current_y) * i_c_size + current_c + i_i_c;
+        byte_addr   = (current_x * i_o_size + current_y) * i_o_c_size + i_i_c * i_depth_mult + current_c;
         word_addr   = byte_addr >> $clog2(SPAD_N);
         byte_offset = byte_addr % SPAD_N;
     end
@@ -222,13 +223,7 @@ module output_router #(
                         o_shift_en <= 1;        // Shift data in systolic array. Addresses the problem of R0, R0, R1, R2, ..., RN-1
                                                 // when we want R0, R1, R2, ..., RN
                         
-                        if (i_conv_mode) begin
-                            // Depthwise
-                            num_input_valid <= (limit_xy+1);
-                        end else begin
-                            // Pointwise
-                            num_input_valid <= (limit_xy+1) * (limit_c - start_c + 1);
-                        end
+                        num_input_valid <= (limit_xy+1) * (limit_c - start_c + 1);
                         quant_store_reg <= 1'b1;
                     end 
                     else 
