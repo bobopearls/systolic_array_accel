@@ -25,7 +25,7 @@ module tb_top;
     int input_size, input_channels, output_channels, output_size, stride, precision, layer_identifier, depth_mult;
 
 
-    string input_file, weight_file, cycle_file, out_file;
+    string input_file, weight_file, bias_file, scale_file, shift_file, cycle_file, out_file;
 
     logic [SRAM_DATA_WIDTH-1:0] mem_data;
 
@@ -51,7 +51,7 @@ module tb_top;
     logic [DATA_WIDTH*2-1:0] o_ofmap;
     logic o_ofmap_valid, o_done, o_or_en, o_route_en;
 
-    logic i_spad_select;
+    logic [2:0] i_spad_select;
 
     logic [2:0] o_top_state;
 
@@ -124,7 +124,7 @@ module tb_top;
         i_i_start_addr = 0;
         i_i_addr_end = 0;
         i_w_start_addr = 0;
-        i_w_addr_end = 1;
+        i_w_addr_end = 0;
         i_route_size = 9;
         i_route_en = 0;
         i_or_read_en = 0;
@@ -153,6 +153,9 @@ module tb_top;
         // Strings (for file paths)
         if (!$value$plusargs("INPUT_FILE=%s", input_file)) input_file = "inputs.txt";
         if (!$value$plusargs("WEIGHT_FILE=%s", weight_file)) weight_file = "weights.txt";
+        if (!$value$plusargs("BIAS_FILE=%s", bias_file)) bias_file = "biases.txt";
+        if (!$value$plusargs("SCALE_FILE=%s", scale_file)) scale_file = "scales.txt";
+        if (!$value$plusargs("SHIFT_FILE=%s", shift_file)) shift_file = "shifts.txt";
         if (!$value$plusargs("CYCLE_FILE=%s", cycle_file)) cycle_file = "default_cycle.txt";
         if (!$value$plusargs("OUTPUT_FILE=%s", out_file)) out_file = "output.txt";
 
@@ -234,6 +237,81 @@ module tb_top;
         i_write_addr = 0;
         $fclose(file);
 
+        // Write to bias SRAM
+        file = $fopen(bias_file, "r");
+        if (file == 0) begin
+            $display("Error opening file 3");
+            $finish;
+        end
+
+        while (!$feof(file)) begin
+            r = $fscanf(file, "%h\n", mem_data);
+            if (r != 1) begin
+                $display("Error reading data from file!");
+                $finish;
+            end
+            i_write_en = 1;
+            i_spad_select = 2;
+            i_data_in = mem_data;
+            #10; // Wait for one clock cycle
+            i_write_addr = i_write_addr + 1;
+        end
+        // i_w_addr_end = i_write_addr - 1; // We don't have separate start and end addr for bias, scale, shift since we can determine the number of bias/scale/shift values based on the output channel size
+        i_write_en = 0;
+        #10;
+        i_write_addr = 0;
+        $fclose(file);
+
+        // Write to scale SRAM
+        file = $fopen(scale_file, "r");
+        if (file == 0) begin
+            $display("Error opening file 4");
+            $finish;
+        end
+
+        while (!$feof(file)) begin
+            r = $fscanf(file, "%h\n", mem_data);
+            if (r != 1) begin
+                $display("Error reading data from file!");
+                $finish;
+            end
+            i_write_en = 1;
+            i_spad_select = 3;
+            i_data_in = mem_data;
+            #10; // Wait for one clock cycle
+            i_write_addr = i_write_addr + 1;
+        end
+        // i_w_addr_end = i_write_addr - 1; // We don't have separate start and end addr for bias, scale, shift since we can determine the number of bias/scale/shift values based on the output channel size
+        i_write_en = 0;
+        #10;
+        i_write_addr = 0;
+        $fclose(file);
+
+        // Write to shift SRAM
+        file = $fopen(shift_file, "r");
+        if (file == 0) begin
+            $display("Error opening file 5");
+            $finish;
+        end
+
+        while (!$feof(file)) begin
+            r = $fscanf(file, "%h\n", mem_data);
+            if (r != 1) begin
+                $display("Error reading data from file!");
+                $finish;
+            end
+            i_write_en = 1;
+            i_spad_select = 4;
+            i_data_in = mem_data;
+            #10; // Wait for one clock cycle
+            i_write_addr = i_write_addr + 1;
+        end
+        // i_w_addr_end = i_write_addr - 1; // We don't have separate start and end addr for bias, scale, shift since we can determine the number of bias/scale/shift values based on the output channel size
+        i_write_en = 0;
+        #10;
+        i_write_addr = 0;
+        $fclose(file);
+
         @(posedge i_clk); // wait for one clock cycle
         i_route_en = 1;
     end
@@ -275,15 +353,7 @@ module tb_top;
 
     // // Terminate simulation when o_done is high
     always @(posedge i_clk) begin
-        if (o_done) /*begin
-            if (i_conv_mode && (i_c < i_c_size - 1)) begin
-                i_c <= i_c + 1;
-                i_nrst <= 0;
-                #200;
-                i_nrst <= 1;
-                i_route_en <= 1;
-            end
-            else */begin            
+        if (o_done) begin            
                 //$toggle_stop();
                 //$toggle_report("toggle_report.saif",1e-12, dut);
                 $display("Simulation completed: o_done asserted.");
@@ -301,7 +371,8 @@ module tb_top;
                 
                 $fclose(cycle_stats);
                 
-                
+                // Read output data using output routing interface
+                #200; // Wait for some time
                 for (int i = 0; i < ((output_size*output_size*output_channels+SPAD_N-1)/SPAD_N); i++) begin
                     i_or_addr = i;
                     i_or_read_en = 1;

@@ -20,6 +20,7 @@ module output_router #(
     // Qunatization parameters
     input  logic              [  DATA_WIDTH-1:0] i_quant_sh,
     input  logic              [2*DATA_WIDTH-1:0] i_quant_m0,
+    input  logic signed       [4*DATA_WIDTH-1:0] i_quant_bias,
     // Address generation
     // Top module inputs
     input logic  [ADDR_WIDTH-1:0] i_o_size,
@@ -43,6 +44,9 @@ module output_router #(
     output logic [SPAD_N-1:0]     o_write_mask,
     output logic                  o_valid,
     output logic                  o_done,
+    // For bias, scale, shift spads
+    output logic o_quant_read_en,
+    output logic [$clog2(COLUMNS)-1:0] o_quant_addr,
     // For debug
     output logic [SPAD_WIDTH-1:0] o_word,
     output logic                  o_word_valid,
@@ -51,6 +55,7 @@ module output_router #(
     output logic [ADDR_WIDTH-1:0] o_o_c
 );
     logic [$clog2(COLUMNS*ROWS):0] num_input_valid;
+    logic [$clog2(COLUMNS)-1:0] quant_idx; // which quant unit to store reg for
     // Parallel quant
     logic                                 quant_en;
     logic                                 quant_store_reg;
@@ -65,7 +70,7 @@ module output_router #(
     logic        [$clog2(SPAD_N):0]       bytes_to_write;
     logic        [$clog2(SPAD_N):0]       bytes_in_buffer;
     // 
-    logic [ADDR_WIDTH-1:0] current_x, current_y, current_c;
+    logic [ADDR_WIDTH-1:0] current_x, current_y, current_c, output_c, counter;
     logic [ADDR_WIDTH-1:0] prev_x, prev_y;
     logic [ADDR_WIDTH-1:0] start_x, start_y, start_c;
     logic [ADDR_WIDTH-1:0] limit_x, limit_y, limit_c, limit_xy;
@@ -76,7 +81,8 @@ module output_router #(
     logic [SPAD_N-1:0] byte_offset;     // which byte in the word
     // address = n*HWC + h*WC + w*C + c
     always_comb begin
-        byte_addr   = (current_x * i_o_size + current_y) * i_o_c_size + i_i_c * i_depth_mult + current_c;
+        output_c    = i_i_c * i_depth_mult + current_c;
+        byte_addr   = (current_x * i_o_size + current_y) * i_o_c_size + output_c;
         word_addr   = byte_addr >> $clog2(SPAD_N);
         byte_offset = byte_addr % SPAD_N;
     end
@@ -90,7 +96,7 @@ module output_router #(
                 .i_clk      (i_clk),
                 .i_nrst     (i_nrst),
                 .i_en       (quant_en),
-                .i_store_reg(quant_store_reg),
+                .i_store_reg(quant_store_reg && (q == quant_idx)), 
                 .i_sh       (i_quant_sh),
                 .i_m0       (i_quant_m0),
                 .i_act      (quant_i_act[q]),
@@ -123,11 +129,12 @@ module output_router #(
     end
 
     parameter int IDLE_STATE = 0;
-    parameter int QUANT_DATA = 1;
-    parameter int COLLECT_IN = 2;
-    parameter int SPAD_WRITE = 3;
-    parameter int NEXT_ADDR  = 4;
-    parameter int DONE_STATE = 5;
+    parameter int PRELOAD_QUANT = 1;
+    parameter int QUANT_DATA = 2;
+    parameter int COLLECT_IN = 3;
+    parameter int SPAD_WRITE = 4;
+    parameter int NEXT_ADDR  = 5;
+    parameter int DONE_STATE = 6;
 
     logic [2:0] state;
 
@@ -164,6 +171,11 @@ module output_router #(
             o_valid         <= 0;
             o_shift_en      <= 0;
             o_done          <= 0;
+
+            quant_idx       <= 0;
+            o_quant_read_en <= 0;
+            o_quant_addr    <= 0;
+            counter         <= 0;
         end else if(i_reg_clear) begin
             state           <= IDLE_STATE;
             
@@ -196,6 +208,11 @@ module output_router #(
             o_valid         <= 0;
             o_shift_en      <= 0;
             o_done          <= 0;
+
+            quant_idx       <= 0;
+            o_quant_read_en <= 0;
+            o_quant_addr    <= 0;
+            counter         <= 0;
         end else begin
             case (state)
                 IDLE_STATE: begin
@@ -219,33 +236,57 @@ module output_router #(
                     end
                     
                     if (i_en && !o_done) begin
-                        state           <= QUANT_DATA;
-                        o_shift_en <= 1;        // Shift data in systolic array. Addresses the problem of R0, R0, R1, R2, ..., RN-1
-                                                // when we want R0, R1, R2, ..., RN
-                        
+                        state           <= PRELOAD_QUANT;
+                        o_quant_addr    <= i_c_s;
+                        o_quant_read_en <= 1;
+
                         num_input_valid <= (limit_xy+1) * (limit_c - start_c + 1);
-                        quant_store_reg <= 1'b1;
                     end 
                     else 
                         o_done <= 0;
                 end
 
+                PRELOAD_QUANT: begin
+                    // For n columns, iterate idx from 0 to n-1, each time store the data for that column into the quant reg
+                    if (counter <= limit_c - start_c) begin
+                        quant_idx <= (COLUMNS - 1) - counter; // reversed order, check with quant_i_act assignment in generate block
+                        quant_store_reg <= 1'b1;
+
+                        o_quant_addr <= start_c + counter + 1; // we can start reading the next quant data in the same cycle as storing the current quant result since the quant result is only valid in the next cycle
+                        o_quant_read_en <= (o_quant_addr < limit_c) ? 1 : 0; // stop reading quant data once we have read all the necessary quant data for the current tile
+                        
+                        counter <= counter + 1;
+                    end else begin
+                        quant_idx <= 0;
+                        quant_store_reg <= 0;
+
+                        o_quant_read_en <= 0;
+                        o_quant_addr <= 0;
+
+                        counter <= 0;                        
+                        state <= QUANT_DATA;
+                    end
+                end
+
                 QUANT_DATA: begin
-                    o_shift_en <= 0;
-                    if (num_input_valid > 0) begin
-                        quant_store_reg   <= 1'b0;
-                        if (quant_all_valid) begin
-                            state         <= COLLECT_IN;
-                            quant_en      <= 0;
-                            data_left     <= quant_o_act;
-                            data_left_cnt <= (limit_c - start_c + 1 < COLUMNS)? limit_c - start_c + 1 : COLUMNS;
-                        end else begin
-                            quant_en      <= 1'b1;
-                            for(int i=0; i<COLUMNS; i=i+1) quant_i_act[i] <= i_ifmap[COLUMNS-i-1];
-                        end
-                    end 
-                    else 
-                        state <= DONE_STATE;
+                    if (o_shift_en) begin
+                        o_shift_en <= 0; // wait for one cycle for the shift to take effect
+                    end
+                    else begin
+                        if (num_input_valid > 0) begin
+                            if (quant_all_valid) begin
+                                state         <= COLLECT_IN;
+                                quant_en      <= 0;
+                                data_left     <= quant_o_act;
+                                data_left_cnt <= (limit_c - start_c + 1 < COLUMNS)? limit_c - start_c + 1 : COLUMNS;
+                            end else begin
+                                quant_en      <= 1'b1;
+                                for(int i=0; i<COLUMNS; i=i+1) quant_i_act[i] <= i_ifmap[COLUMNS-i-1];
+                            end
+                        end 
+                        else 
+                            state <= DONE_STATE;
+                    end
                 end
 
                 COLLECT_IN: begin

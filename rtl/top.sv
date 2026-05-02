@@ -12,7 +12,10 @@ module top #(
     parameter int ROWS = `ROWS,
     parameter int COLUMNS = `COLUMNS,
     parameter int MISO_DEPTH = `MISO_DEPTH,
-    parameter int MPP_DEPTH = `MPP_DEPTH
+    parameter int MPP_DEPTH = `MPP_DEPTH,
+    parameter int BIAS_WIDTH = `BIAS_WIDTH,
+    parameter int SCALE_WIDTH = `SCALE_WIDTH,
+    parameter int SHIFT_WIDTH = `SHIFT_WIDTH
 )(
     input logic i_clk,
     input logic i_nrst,
@@ -21,7 +24,7 @@ module top #(
     // Host-side 
     input logic [SPAD_DATA_WIDTH-1:0] i_data_in,
     input logic [ADDR_WIDTH-1:0] i_write_addr,
-    input logic i_spad_select, // Select between weight and input SRAM
+    input logic [2:0] i_spad_select, // Select between weight, input, bias, scale, shift spads, etc.
     input logic i_write_en,
     input logic i_route_en,
     input logic [1:0] i_p_mode,
@@ -65,19 +68,61 @@ module top #(
     output logic o_route_en
 
 );
-    logic spad_w_write_en, spad_i_write_en;
-
+    logic spad_w_write_en, spad_i_write_en, spad_b_write_en, spad_sc_write_en, spad_sh_write_en;
+    // weight, ifmap, bias, scale, shift
+    
+    parameter weights = 3'b000, ifmaps = 3'b001, bias = 3'b010, scale = 3'b011, shift = 3'b100;
     // Select which SRAM to write to
     always_comb begin
-        if (~i_spad_select) begin
-            // Weight SRAM
-            spad_w_write_en = i_write_en;
-            spad_i_write_en = 1'b0;
-        end else begin
-            // Input SRAM
-            spad_w_write_en = 1'b0;
-            spad_i_write_en = i_write_en;
-        end
+        case (i_spad_select) 
+            weights: begin
+                // Weight SRAM
+                spad_w_write_en = i_write_en;
+                spad_i_write_en = 1'b0;
+                spad_b_write_en = 1'b0;
+                spad_sc_write_en = 1'b0;
+                spad_sh_write_en = 1'b0;
+                end
+            ifmaps: begin
+                // Input SRAM
+                spad_w_write_en = 1'b0;
+                spad_i_write_en = i_write_en;
+                spad_b_write_en = 1'b0;
+                spad_sc_write_en = 1'b0;
+                spad_sh_write_en = 1'b0;
+                end
+            bias: begin
+                // Bias SRAM
+                spad_w_write_en = 1'b0;
+                spad_i_write_en = 1'b0;
+                spad_b_write_en = i_write_en;
+                spad_sc_write_en = 1'b0;
+                spad_sh_write_en = 1'b0;
+                end
+            scale: begin
+                // Scale SRAM
+                spad_w_write_en = 1'b0;
+                spad_i_write_en = 1'b0;
+                spad_b_write_en = 1'b0;
+                spad_sc_write_en = i_write_en;
+                spad_sh_write_en = 1'b0;
+                end
+            shift: begin
+                // Shift SRAM
+                spad_w_write_en = 1'b0;
+                spad_i_write_en = 1'b0;
+                spad_b_write_en = 1'b0;
+                spad_sc_write_en = 1'b0;
+                spad_sh_write_en = i_write_en;
+                end
+            default: begin
+                spad_w_write_en = 1'b0;
+                spad_i_write_en = 1'b0;
+                spad_b_write_en = 1'b0;
+                spad_sc_write_en = 1'b0;
+                spad_sh_write_en = 1'b0;
+                end
+        endcase
     end
 
     // Instantiate top controller
@@ -139,8 +184,12 @@ module top #(
 
     logic [ADDR_WIDTH-1:0] xy_length;
 
-    logic [  DATA_WIDTH-1:0] quant_sh = {8'h05}; // 8'h05;
-    logic [2*DATA_WIDTH-1:0] quant_m0 = {16'h9c8c};
+    // Quantization parameters
+    logic [SHIFT_WIDTH-1:0] quant_shift;
+    logic [SCALE_WIDTH-1:0] quant_scale;
+    logic [BIAS_WIDTH-1:0] quant_bias;
+    logic quant_bias_valid, quant_scale_valid, quant_shift_valid, quant_read_en;
+    logic [$clog2(COLUMNS)-1:0] quant_addr;
 
     logic [ADDR_WIDTH-1:0] s_r, s_c, s_t;
 
@@ -313,8 +362,11 @@ module top #(
         .i_c_s(c_s),
         .i_c_e(c_e),
         .i_c_valid(c_valid),
-        .i_quant_sh(quant_sh),
-        .i_quant_m0(quant_m0),
+        .i_quant_sh(quant_shift),
+        .i_quant_m0(quant_scale),
+        .i_quant_bias(quant_bias),
+        .o_quant_addr(quant_addr),
+        .o_quant_read_en(quant_read_en),
         .o_addr(or_addr),
         .o_data_out(or_data_out),
         .o_write_mask(or_write_mask),
@@ -343,6 +395,60 @@ module top #(
         .i_read_addr(i_or_addr),
         .o_data_out(o_or_data_out),
         .o_data_out_valid(o_or_data_out_valid)
+    );
+
+    spad #(
+        .ADDR_WIDTH($clog2(COLUMNS)), // COLUMNS is number of channels for now.
+        .SPAD_WIDTH(BIAS_WIDTH),
+        .DATA_WIDTH(BIAS_WIDTH),
+        .SPAD_N(1)
+    ) bias_spad (
+        .i_clk(i_clk),
+        .i_nrst(i_nrst),
+        .i_write_en(spad_b_write_en),
+        .i_read_en(quant_read_en),
+        .i_data_in(i_data_in),
+        .i_write_mask({SPAD_N{1'b1}}), // We always write a full word into the SPAD for now
+        .i_write_addr(i_write_addr),
+        .i_read_addr(quant_addr),
+        .o_data_out(quant_bias),
+        .o_data_out_valid(quant_bias_valid)
+    );
+
+    spad #(
+        .ADDR_WIDTH($clog2(COLUMNS)), // COLUMNS is number of channels for now.
+        .SPAD_WIDTH(SCALE_WIDTH),
+        .DATA_WIDTH(SCALE_WIDTH),
+        .SPAD_N(1)
+    ) scale_spad (
+        .i_clk(i_clk),
+        .i_nrst(i_nrst),
+        .i_write_en(spad_sc_write_en),
+        .i_read_en(quant_read_en),
+        .i_data_in(i_data_in),
+        .i_write_mask({SPAD_N{1'b1}}), // We always write a full word into the SPAD for now
+        .i_write_addr(i_write_addr),
+        .i_read_addr(quant_addr),
+        .o_data_out(quant_scale),
+        .o_data_out_valid(quant_scale_valid)
+    );
+
+    spad #(
+        .ADDR_WIDTH($clog2(COLUMNS)), // COLUMNS is number of channels for now.
+        .SPAD_WIDTH(SHIFT_WIDTH),
+        .DATA_WIDTH(SHIFT_WIDTH),
+        .SPAD_N(1)
+    ) shift_spad (
+        .i_clk(i_clk),
+        .i_nrst(i_nrst),
+        .i_write_en(spad_sh_write_en),
+        .i_read_en(quant_read_en),
+        .i_data_in(i_data_in),
+        .i_write_mask({SPAD_N{1'b1}}), // We always write a full word into the SPAD for now
+        .i_write_addr(i_write_addr),
+        .i_read_addr(quant_addr),
+        .o_data_out(quant_shift),
+        .o_data_out_valid(quant_shift_valid)
     );
 
     assign o_or_en = or_en;
