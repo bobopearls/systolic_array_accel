@@ -38,7 +38,8 @@ module top #(
     input logic [ADDR_WIDTH-1:0] i_o_size,              // Output feature map size (assuming square). Ex: for 3x3xCo output, i_o_size = 3
     input logic [ADDR_WIDTH-1:0] i_stride,              // Stride size
     input logic [ADDR_WIDTH-1:0] i_depth_mult,          // Only used for DW. Ignored for PW.
-
+    input logic [DATA_WIDTH-1:0] o_zero_point,          // Output zero point for quantization
+    
     // Input router parameters
     input logic [ADDR_WIDTH-1:0] i_i_start_addr,        // Starting address in the input SPAD for the input router to read from
     input logic [ADDR_WIDTH-1:0] i_i_addr_end,          // Address in the input SPAD for the input router to stop reading from, *inclusive*
