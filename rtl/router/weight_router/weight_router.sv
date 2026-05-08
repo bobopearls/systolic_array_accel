@@ -31,6 +31,7 @@ module weight_router #(
     input logic i_spad_write_en,
     input logic [SPAD_DATA_WIDTH-1:0] i_spad_data_in,
     input logic [ADDR_WIDTH-1:0] i_spad_write_addr,
+    input logic [SPAD_N-1:0] i_spad_write_mask, // We might want to write partial words into the SPAD in the future
 
     // Tile Reader related signals
     input logic [ADDR_WIDTH-1:0] i_start_addr,
@@ -86,7 +87,7 @@ module weight_router #(
         .i_read_en(spad_read_en),
         .i_data_in(i_spad_data_in),
         .i_write_addr(i_spad_write_addr),
-        .i_write_mask({SPAD_N{1'b1}}), // We always write a full word into the SPAD for now
+        .i_write_mask(i_spad_write_mask),
         .i_read_addr(spad_read_addr),
         .o_data_out(spad_data_out),
         .o_data_out_valid(spad_data_out_valid)
