@@ -20,8 +20,7 @@ module data_lane #(
     input logic i_conv_mode, // Convolution mode - 0: PWise, 1: DWise
     
     input logic i_addr_write_en,
-    input logic [DATA_WIDTH-1:0] i_zero_offset,
-
+    
     // Pwise Address Reference
     input [$clog2(SPAD_N)+ADDR_WIDTH-1:0] i_start_addr, i_end_addr,
     
@@ -158,7 +157,6 @@ module data_lane #(
         .i_p_mode(i_p_mode),
         .i_data(f_data),
         .i_valid(f_data_hit),
-        .i_zero_offset(i_zero_offset),
         .o_data(o_data),
         .o_empty(miso_empty),
         .o_full(miso_full),

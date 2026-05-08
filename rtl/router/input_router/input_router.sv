@@ -78,8 +78,7 @@ module input_router #(
     logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] dl_start_addr, dl_end_addr;
     logic [ADDR_WIDTH-1:0] dl_id;
     logic dl_addr_write_en;
-    logic [DATA_WIDTH-1:0] zero_offset = -128; // Typically, -128 because of RELU, but we will later feed the actual zero offset from the controller.
-
+    
     logic [ADDR_WIDTH-1:0] slots;
 
     spad #(
@@ -197,7 +196,6 @@ module input_router #(
         .i_data_valid(tr_data_valid),
         .i_miso_pop_en(fifo_pop_en),
         .i_p_mode(i_p_mode),
-        .i_zero_offset(zero_offset),
         .o_data(o_data),
         .o_data_valid(o_data_valid),
         .o_fifo_full(fifo_full),
@@ -207,5 +205,16 @@ module input_router #(
         .o_slots(slots)
     );
 
+
+
     assign o_route_en = route_en;
+
+    // Debug: Display o_data one cycle after fifo_pop_en is asserted
+    logic fifo_pop_en_r = 0;
+    always @(posedge i_clk) begin
+        fifo_pop_en_r <= fifo_pop_en;
+        if (fifo_pop_en_r) begin
+            $display("[%0t] o_data (after fifo_pop_en): %h", $time, o_data);
+        end
+    end
 endmodule

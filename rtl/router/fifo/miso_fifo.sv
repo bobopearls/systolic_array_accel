@@ -10,7 +10,6 @@ module miso_fifo #(
     input logic [1:0] i_p_mode,
     input logic [DATA_LENGTH-1:0][DATA_WIDTH-1:0] i_data,       
     input logic [DATA_LENGTH-1:0] i_valid,
-    input logic [DATA_WIDTH-1:0] i_zero_offset,
     output logic [DATA_WIDTH-1:0] o_data,
     output logic o_empty, o_full, o_pop_valid,
     output logic [ADDR_WIDTH:0] o_slots
@@ -112,11 +111,10 @@ module miso_fifo #(
         end else if (pop_en) begin
             case (i_p_mode)
                 _8x8: begin
-                    o_data <= fifo[r_pointer] - i_zero_offset; // Apply zero offset for 8x8 mode for now only.
+                    o_data <= fifo[r_pointer]; 
                     r_pointer <= r_pointer + 1;
                     o_pop_valid <= 1;
                 end
-                // Apply zero offset for other modes as well.
                 _4x4: begin
                     o_data <= fb_data;
                     if (last_data_4b) begin
