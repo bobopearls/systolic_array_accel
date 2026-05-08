@@ -19,49 +19,49 @@ module top #(
 )(
     input logic i_clk,
     input logic i_nrst,
-    input logic i_reg_clear,
+    input logic i_reg_clear,                            // for resetting the controllers
 
     // Host-side 
-    input logic [SPAD_DATA_WIDTH-1:0] i_data_in,
-    input logic [ADDR_WIDTH-1:0] i_write_addr,
-    input logic [2:0] i_spad_select, // Select between weight, input, bias, scale, shift spads, etc.
-    input logic i_write_en,
-    input logic i_route_en,
-    input logic [1:0] i_p_mode,
+    input logic [SPAD_DATA_WIDTH-1:0] i_data_in,        // data to be written into SPADs
+    input logic [ADDR_WIDTH-1:0] i_write_addr,          // address to write data into SPADs
+    input logic [SPAD_N-1:0] i_write_mask,              // byte-level write mask for writing into SPADs
+    input logic [2:0] i_spad_select,                    // Select between weight (0), input (1), bias (2), mul (3), shift (4) spads
+    input logic i_write_en,                             // Write enable for writing into SPADs. This will be used in conjunction with i_spad_select and i_write_addr
+    input logic i_route_en,                             // Enable after the SPADs have been loaded with the necessary data to start routing and computation
+    input logic [1:0] i_p_mode,                         // 00 for 8-bit, 01 for 4-bit, 10 for 2-bit precision.
 
     // Convolution parameters
-    input logic i_conv_mode, // 0: PWise, 1: DWise,
-    input logic [ADDR_WIDTH-1:0] i_i_size,
-    input logic [ADDR_WIDTH-1:0] i_i_c_size,
-    input logic [ADDR_WIDTH-1:0] i_o_c_size,
-    input logic [ADDR_WIDTH-1:0] i_o_size,
-    input logic [ADDR_WIDTH-1:0] i_stride,
-    input logic [ADDR_WIDTH-1:0] i_depth_mult, // Only used for DW. Ignored for PW.
+    input logic i_conv_mode,                            // 0: PWise, 1: DWise,
+    input logic [ADDR_WIDTH-1:0] i_i_size,              // Input feature map size (assuming square). Ex: for 3x3xCi input, i_i_size = 3
+    input logic [ADDR_WIDTH-1:0] i_i_c_size,            // Number of input channels
+    input logic [ADDR_WIDTH-1:0] i_o_c_size,            // Number of output channels
+    input logic [ADDR_WIDTH-1:0] i_o_size,              // Output feature map size (assuming square). Ex: for 3x3xCo output, i_o_size = 3
+    input logic [ADDR_WIDTH-1:0] i_stride,              // Stride size
+    input logic [ADDR_WIDTH-1:0] i_depth_mult,          // Only used for DW. Ignored for PW.
 
     // Input router parameters
-    input logic [ADDR_WIDTH-1:0] i_i_start_addr, 
-    input logic [ADDR_WIDTH-1:0] i_i_addr_end,
+    input logic [ADDR_WIDTH-1:0] i_i_start_addr,        // Starting address in the input SPAD for the input router to read from
+    input logic [ADDR_WIDTH-1:0] i_i_addr_end,          // Address in the input SPAD for the input router to stop reading from, *inclusive*
 
     // Weight router parameters
-    input logic [ADDR_WIDTH-1:0] i_w_start_addr,
-    input logic [ADDR_WIDTH-1:0] i_w_addr_end,
+    input logic [ADDR_WIDTH-1:0] i_w_start_addr,        // Starting address in the weight SPAD for the weight router to read from
+    input logic [ADDR_WIDTH-1:0] i_w_addr_end,          // Address in the weight SPAD for the weight router to stop reading from, *inclusive*
 
-    // Output
+    // Output router parameters
+    output logic o_done,                                // Convolution operation is done. Output feature map is now stored in the output SPAD.
+    input logic [ADDR_WIDTH-1:0] i_or_addr,             // Address in the output SPAD to read from
+    input logic i_or_read_en,                           // Read enable for reading from output SPAD
+    output logic [SPAD_DATA_WIDTH-1:0] o_or_data_out,   // Data read out from output SPAD
+    output logic o_or_data_out_valid,                   // Valid signal for o_or_data_out
+    
+    // For debug/temp verification - Ignore this in the final version
     output logic [DATA_WIDTH*4-1:0] o_ofmap,
     output logic o_ofmap_valid,
-    output logic o_done,
-
-    // For temp verification
     output logic [SPAD_DATA_WIDTH-1:0] o_word,
     output logic o_word_valid,
     output logic [ADDR_WIDTH-1:0] o_word_addr,
     output logic [SPAD_N-1:0] o_word_byte_offset,
     output logic [ADDR_WIDTH-1:0] o_o_x, o_o_y, o_o_c,
-
-    input logic [ADDR_WIDTH-1:0] i_or_addr,
-    input logic i_or_read_en,
-    output logic [SPAD_DATA_WIDTH-1:0] o_or_data_out,
-    output logic o_or_data_out_valid,
     output logic [2:0] o_top_state,
     output logic o_or_en,
     output logic o_pe_en,
