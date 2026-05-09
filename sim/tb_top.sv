@@ -35,6 +35,7 @@ module tb_top;
     logic [1:0] p_mode;
     logic [SRAM_DATA_WIDTH-1:0] i_data_in;
     logic [ADDR_WIDTH-1:0] i_write_addr;
+    logic [ADDR_WIDTH-1:0] i_write_mask;
     logic [ADDR_WIDTH-1:0] i_i_start_addr, i_i_addr_end;
     logic [ADDR_WIDTH-1:0] i_size, o_size, i_stride, i_c_size, i_c, o_c_size, i_depth_mult; 
     logic [ADDR_WIDTH-1:0] i_w_start_addr, i_w_addr_end, i_route_size;
@@ -56,8 +57,9 @@ module tb_top;
     logic [2:0] o_top_state;
 
     // Clock generation
+    parameter CLK_PERIOD = 40; // Clock period in nanoseconds, ie. 40 ns = 25 MHz
     initial i_clk = 0;
-    always #5 i_clk = ~i_clk; // 10ns clock period
+    always #(CLK_PERIOD/2) i_clk = ~i_clk;
 
     top dut (
         .i_clk(i_clk),
@@ -66,6 +68,7 @@ module tb_top;
         .i_conv_mode(i_conv_mode),
         .i_data_in(i_data_in),
         .i_write_addr(i_write_addr),
+        .i_write_mask(i_write_mask),
         .i_spad_select(i_spad_select),
         .i_write_en(i_write_en),
         .i_route_en(i_route_en),
@@ -83,6 +86,7 @@ module tb_top;
         .i_w_addr_end(i_w_addr_end),
         .i_or_addr(i_or_addr),
         .i_or_read_en(i_or_read_en),
+        .zero_point(8'h80), // hardcode zero point to -128 for now
         .o_or_data_out(o_or_data_out),
         .o_ofmap(o_ofmap),
         .o_ofmap_valid(o_ofmap_valid),
@@ -120,6 +124,7 @@ module tb_top;
         i_reg_clear = 0;
         i_spad_select = 0;
         i_write_addr = 0;
+        i_write_mask = 0;
         i_data_in = 0;
         i_i_start_addr = 0;
         i_i_addr_end = 0;
@@ -169,7 +174,7 @@ module tb_top;
         i_depth_mult = depth_mult;
 
         write_spad_counter = 0;
-        #200;
+        #(5*CLK_PERIOD);
         i_nrst = 1;
         
         // Open output file
@@ -203,12 +208,13 @@ module tb_top;
             i_write_en = 1;
             i_spad_select = 0;
             i_data_in = mem_data;
-            #10; // Wait for one clock cycle
+            i_write_mask = '1;
+            #(CLK_PERIOD); // Wait for one clock cycle
             i_write_addr = i_write_addr + 1;
         end
         i_w_addr_end = i_write_addr - 1;
         i_write_en = 0;
-        #10;
+        #(CLK_PERIOD);
         i_write_addr = 0;
         $fclose(file);
 
@@ -228,12 +234,13 @@ module tb_top;
             i_write_en = 1;
             i_spad_select = 1;
             i_data_in = mem_data;
-            #10; // Wait for one clock cycle
+            i_write_mask = '1;
+            #(CLK_PERIOD); // Wait for one clock cycle
             i_write_addr = i_write_addr + 1;
         end
         i_i_addr_end = i_write_addr - 1;
         i_write_en = 0;
-        #10;
+        #(CLK_PERIOD);
         i_write_addr = 0;
         $fclose(file);
 
@@ -253,12 +260,13 @@ module tb_top;
             i_write_en = 1;
             i_spad_select = 2;
             i_data_in = mem_data;
-            #10; // Wait for one clock cycle
+            i_write_mask = '1;
+            #(CLK_PERIOD); // Wait for one clock cycle
             i_write_addr = i_write_addr + 1;
         end
         // i_w_addr_end = i_write_addr - 1; // We don't have separate start and end addr for bias, scale, shift since we can determine the number of bias/scale/shift values based on the output channel size
         i_write_en = 0;
-        #10;
+        #(CLK_PERIOD);
         i_write_addr = 0;
         $fclose(file);
 
@@ -278,12 +286,13 @@ module tb_top;
             i_write_en = 1;
             i_spad_select = 3;
             i_data_in = mem_data;
-            #10; // Wait for one clock cycle
+            i_write_mask = '1;
+            #(CLK_PERIOD); // Wait for one clock cycle
             i_write_addr = i_write_addr + 1;
         end
         // i_w_addr_end = i_write_addr - 1; // We don't have separate start and end addr for bias, scale, shift since we can determine the number of bias/scale/shift values based on the output channel size
         i_write_en = 0;
-        #10;
+        #(CLK_PERIOD);
         i_write_addr = 0;
         $fclose(file);
 
@@ -303,12 +312,13 @@ module tb_top;
             i_write_en = 1;
             i_spad_select = 4;
             i_data_in = mem_data;
-            #10; // Wait for one clock cycle
+            i_write_mask = '1;
+            #(CLK_PERIOD); // Wait for one clock cycle
             i_write_addr = i_write_addr + 1;
         end
         // i_w_addr_end = i_write_addr - 1; // We don't have separate start and end addr for bias, scale, shift since we can determine the number of bias/scale/shift values based on the output channel size
         i_write_en = 0;
-        #10;
+        #(CLK_PERIOD);
         i_write_addr = 0;
         $fclose(file);
 
@@ -372,11 +382,11 @@ module tb_top;
                 $fclose(cycle_stats);
                 
                 // Read output data using output routing interface
-                #200; // Wait for some time
+                #(5*CLK_PERIOD); // Wait for some time
                 for (int i = 0; i < ((output_size*output_size*output_channels+SPAD_N-1)/SPAD_N); i++) begin
                     i_or_addr = i;
                     i_or_read_en = 1;
-                    #10; // Wait for one clock cycle
+                    #(CLK_PERIOD); // Wait for one clock cycle
                     $fdisplay(output_file, "%h", o_or_data_out);
                 end
                 i_or_read_en = 0;
