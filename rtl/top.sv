@@ -12,10 +12,10 @@ module top #(
     parameter int ROWS = `ROWS,
     parameter int COLUMNS = `COLUMNS,
     parameter int MISO_DEPTH = `MISO_DEPTH,
-    parameter int MPP_DEPTH = `MPP_DEPTH,
-    parameter int BIAS_WIDTH = `BIAS_WIDTH,
-    parameter int SCALE_WIDTH = `SCALE_WIDTH,
-    parameter int SHIFT_WIDTH = `SHIFT_WIDTH
+    parameter int MPP_DEPTH = `MPP_DEPTH
+    //parameter int BIAS_WIDTH = `BIAS_WIDTH,
+    //parameter int SCALE_WIDTH = `SCALE_WIDTH,
+    //parameter int SHIFT_WIDTH = `SHIFT_WIDTH
 )(
     input logic i_clk,
     input logic i_nrst,
@@ -186,11 +186,13 @@ module top #(
     logic [ADDR_WIDTH-1:0] xy_length;
 
     // Quantization parameters
-    logic [SHIFT_WIDTH-1:0] quant_shift;
-    logic [SCALE_WIDTH-1:0] quant_scale;
-    logic [BIAS_WIDTH-1:0] quant_bias;
+    logic [SPAD_DATA_WIDTH-1:0] quant_shift;
+    logic [SPAD_DATA_WIDTH-1:0] quant_scale;
+    logic [SPAD_DATA_WIDTH-1:0] quant_bias;
     logic quant_bias_valid, quant_scale_valid, quant_shift_valid, quant_read_en;
-    logic [$clog2(COLUMNS)-1:0] quant_addr;
+    logic [ADDR_WIDTH-1:0] bias_addr;
+    logic [ADDR_WIDTH-1:0] mul_addr;
+    logic [ADDR_WIDTH-1:0] shift_addr;
 
     logic [ADDR_WIDTH-1:0] s_r, s_c, s_t;
 
@@ -369,7 +371,9 @@ module top #(
         .i_quant_sh(quant_shift),
         .i_quant_m0(quant_scale),
         .i_quant_bias(quant_bias),
-        .o_quant_addr(quant_addr),
+        .o_bias_addr(bias_addr),
+        .o_mul_addr(mul_addr),
+        .o_shift_addr(shift_addr),
         .o_quant_read_en(quant_read_en),
         .o_addr(or_addr),
         .o_data_out(or_data_out),
@@ -402,55 +406,55 @@ module top #(
     );
 
     spad #(
-        .ADDR_WIDTH($clog2(COLUMNS)), // COLUMNS is number of channels for now.
-        .SPAD_WIDTH(BIAS_WIDTH),
-        .DATA_WIDTH(BIAS_WIDTH),
-        .SPAD_N(1)
+        .ADDR_WIDTH(8), // hardcode for now 
+        .SPAD_WIDTH(SPAD_DATA_WIDTH),
+        .DATA_WIDTH(4*DATA_WIDTH), 
+        .SPAD_N(SPAD_DATA_WIDTH / (4*DATA_WIDTH)) 
     ) bias_spad (
         .i_clk(i_clk),
         .i_nrst(i_nrst),
         .i_write_en(spad_b_write_en),
         .i_read_en(quant_read_en),
         .i_data_in(i_data_in),
-        .i_write_mask({SPAD_N{1'b1}}), // We always write a full word into the SPAD for now
+        .i_write_mask(i_write_mask),
         .i_write_addr(i_write_addr),
-        .i_read_addr(quant_addr),
+        .i_read_addr(bias_addr),
         .o_data_out(quant_bias),
         .o_data_out_valid(quant_bias_valid)
     );
 
     spad #(
-        .ADDR_WIDTH($clog2(COLUMNS)), // COLUMNS is number of channels for now.
-        .SPAD_WIDTH(SCALE_WIDTH),
-        .DATA_WIDTH(SCALE_WIDTH),
-        .SPAD_N(1)
+        .ADDR_WIDTH(8), // hardcode for now
+        .SPAD_WIDTH(SPAD_DATA_WIDTH),
+        .DATA_WIDTH(2*DATA_WIDTH),
+        .SPAD_N(SPAD_DATA_WIDTH / (2*DATA_WIDTH))
     ) scale_spad (
         .i_clk(i_clk),
         .i_nrst(i_nrst),
         .i_write_en(spad_sc_write_en),
         .i_read_en(quant_read_en),
         .i_data_in(i_data_in),
-        .i_write_mask({SPAD_N{1'b1}}), // We always write a full word into the SPAD for now
+        .i_write_mask(i_write_mask),
         .i_write_addr(i_write_addr),
-        .i_read_addr(quant_addr),
+        .i_read_addr(mul_addr),
         .o_data_out(quant_scale),
         .o_data_out_valid(quant_scale_valid)
     );
 
     spad #(
-        .ADDR_WIDTH($clog2(COLUMNS)), // COLUMNS is number of channels for now.
-        .SPAD_WIDTH(SHIFT_WIDTH),
-        .DATA_WIDTH(SHIFT_WIDTH),
-        .SPAD_N(1)
+        .ADDR_WIDTH(8), 
+        .SPAD_WIDTH(SPAD_DATA_WIDTH),
+        .DATA_WIDTH(DATA_WIDTH),
+        .SPAD_N(SPAD_DATA_WIDTH / DATA_WIDTH)
     ) shift_spad (
         .i_clk(i_clk),
         .i_nrst(i_nrst),
         .i_write_en(spad_sh_write_en),
         .i_read_en(quant_read_en),
         .i_data_in(i_data_in),
-        .i_write_mask({SPAD_N{1'b1}}), // We always write a full word into the SPAD for now
+        .i_write_mask(i_write_mask),
         .i_write_addr(i_write_addr),
-        .i_read_addr(quant_addr),
+        .i_read_addr(shift_addr),
         .o_data_out(quant_shift),
         .o_data_out_valid(quant_shift_valid)
     );
