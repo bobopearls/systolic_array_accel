@@ -42,7 +42,8 @@ module pe #(
 
     logic mac_en;
     assign mac_en = i_pe_en & (i_ifmap != 0 || i_weight != 0);
-
+    
+    /*
     mFU mfu (
         .mac_en(mac_en),
         .clk(i_clk),
@@ -52,7 +53,9 @@ module pe #(
         .mode(i_mode),
         .p(o_multiplier)
     );
-
+    */
+    
+    assign o_multiplier = $signed(i_ifmap) * $signed(i_weight);
 
     // Multiplier and Accumulator
     always_ff @(posedge i_clk or negedge i_nrst) begin
