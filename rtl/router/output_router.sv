@@ -17,10 +17,11 @@ module output_router #(
     input  logic [0:COLUMNS-1][4*DATA_WIDTH-1:0] i_ifmap,
     input  logic [0:COLUMNS-1]                   i_valid,       // not used in top.sv
     output logic                                 o_shift_en,
-    // Qunatization parameters
-    input  logic              [  DATA_WIDTH-1:0] i_quant_sh,
-    input  logic              [2*DATA_WIDTH-1:0] i_quant_m0,
-    input  logic signed       [4*DATA_WIDTH-1:0] i_quant_bias,
+    // Quantization parameters
+    input  logic              [  SPAD_WIDTH-1:0] i_quant_sh,    // comes from spad, we'll just extract the relevant value based on computed offset
+    input  logic              [  SPAD_WIDTH-1:0] i_quant_m0,    // same as above
+    input  logic signed       [  SPAD_WIDTH-1:0] i_quant_bias,  // same as above
+    input  logic              [  DATA_WIDTH-1:0] i_zero_point,  // comes from top module input directly since it's only one value per layer, we'll just broadcast it to all quant units
     // Address generation
     // Top module inputs
     input logic  [ADDR_WIDTH-1:0] i_o_size,
@@ -46,7 +47,9 @@ module output_router #(
     output logic                  o_done,
     // For bias, scale, shift spads
     output logic o_quant_read_en,
-    output logic [$clog2(COLUMNS)-1:0] o_quant_addr,
+    output logic [ADDR_WIDTH-1:0] o_bias_addr,
+    output logic [ADDR_WIDTH-1:0] o_mul_addr, 
+    output logic [ADDR_WIDTH-1:0] o_shift_addr,
     // For debug
     output logic [SPAD_WIDTH-1:0] o_word,
     output logic                  o_word_valid,
@@ -87,6 +90,22 @@ module output_router #(
         byte_offset = byte_addr % SPAD_N;
     end
 
+    // Assume 32b word, 32b bias, 16b multiplier, 8b shift for now. 
+    // Can be extended as long as SPAD_N_BIAS is a multiple of 2 (for %clog2(*) to work correctly). Fix this later!
+    parameter int SPAD_N_BIAS = SPAD_WIDTH / (DATA_WIDTH * 4);  // number of bias values we can store in one SPAD word
+    parameter int SPAD_N_MUL = SPAD_WIDTH / (DATA_WIDTH * 2);   // number of multiplier values we can store in one SPAD word
+    parameter int SPAD_N_SHIFT = SPAD_WIDTH / DATA_WIDTH;       // number of shift values we can store in one SPAD word
+    
+    logic [SPAD_N_BIAS-1:0] bias_offset;
+    logic [SPAD_N_MUL-1:0] mul_offset;
+    logic [SPAD_N_SHIFT-1:0] shift_offset;
+    logic [ADDR_WIDTH-1:0] quant_addr;
+    always_comb begin
+        o_bias_addr = quant_addr >> $clog2(SPAD_N_BIAS);
+        o_mul_addr = quant_addr >> $clog2(SPAD_N_MUL);
+        o_shift_addr = quant_addr >> $clog2(SPAD_N_SHIFT);
+    end
+
     genvar q;
     generate
         for (q=0; q<COLUMNS; q=q+1) begin: quat_parallel_gen
@@ -96,11 +115,12 @@ module output_router #(
                 .i_clk      (i_clk),
                 .i_nrst     (i_nrst),
                 .i_en       (quant_en),
-                .i_store_reg(quant_store_reg && (q == quant_idx)), 
-                .i_sh       (i_quant_sh),
-                .i_m0       (i_quant_m0),
-                .i_act      (quant_i_act[q]),
-                .i_zero_point(-128),
+                .i_store_reg(quant_store_reg && (q == quant_idx)),
+                .i_act      (quant_i_act[q]), 
+                .i_sh       (i_quant_sh[shift_offset*DATA_WIDTH +: DATA_WIDTH]),
+                .i_m0       (i_quant_m0[mul_offset*2*DATA_WIDTH +: 2*DATA_WIDTH]),
+                .i_bias     (i_quant_bias[bias_offset*4*DATA_WIDTH +: 4*DATA_WIDTH]),
+                .i_zero_point(i_zero_point),
                 .o_act      (quant_o_act[q]),
                 .o_valid    (quant_valid[q])
             );
@@ -174,7 +194,10 @@ module output_router #(
 
             quant_idx       <= 0;
             o_quant_read_en <= 0;
-            o_quant_addr    <= 0;
+            quant_addr      <= 0;
+            bias_offset     <= 0;
+            mul_offset      <= 0;
+            shift_offset    <= 0;
             counter         <= 0;
         end else if(i_reg_clear) begin
             state           <= IDLE_STATE;
@@ -211,8 +234,11 @@ module output_router #(
 
             quant_idx       <= 0;
             o_quant_read_en <= 0;
-            o_quant_addr    <= 0;
+            quant_addr      <= 0;
             counter         <= 0;
+            bias_offset     <= 0;
+            mul_offset      <= 0;
+            shift_offset    <= 0;
         end else begin
             case (state)
                 IDLE_STATE: begin
@@ -237,7 +263,7 @@ module output_router #(
                     
                     if (i_en && !o_done) begin
                         state           <= PRELOAD_QUANT;
-                        o_quant_addr    <= i_c_s;
+                        quant_addr      <= (i_conv_mode) ? (i_i_c * i_depth_mult) + i_c_s : i_c_s; // if DW, we need to offset by i_i_c * i_depth_mult
                         o_quant_read_en <= 1;
 
                         num_input_valid <= (limit_xy+1) * (limit_c - start_c + 1);
@@ -249,19 +275,27 @@ module output_router #(
                 PRELOAD_QUANT: begin
                     // For n columns, iterate idx from 0 to n-1, each time store the data for that column into the quant reg
                     if (counter <= limit_c - start_c) begin
-                        quant_idx <= (COLUMNS - 1) - counter; // reversed order, check with quant_i_act assignment in generate block
+                        quant_idx <= (COLUMNS - 1) - counter;               // reversed order, check with quant_i_act assignment in generate block
                         quant_store_reg <= 1'b1;
 
-                        o_quant_addr <= start_c + counter + 1; // we can start reading the next quant data in the same cycle as storing the current quant result since the quant result is only valid in the next cycle
-                        o_quant_read_en <= (o_quant_addr < limit_c) ? 1 : 0; // stop reading quant data once we have read all the necessary quant data for the current tile
+                        quant_addr <= quant_addr + 1;                       // we can start reading the next quant data in the same cycle as storing the current quant result since the quant result is only valid in the next cycle
+                        o_quant_read_en <= (quant_addr < limit_c) ? 1 : 0;  // stop reading quant data once we have read all the necessary quant data for the current tile
                         
+                        bias_offset  <= quant_addr % SPAD_N_BIAS;
+                        mul_offset   <= quant_addr % SPAD_N_MUL;
+                        shift_offset <= quant_addr % SPAD_N_SHIFT;
+
                         counter <= counter + 1;
                     end else begin
                         quant_idx <= 0;
                         quant_store_reg <= 0;
 
                         o_quant_read_en <= 0;
-                        o_quant_addr <= 0;
+                        quant_addr <= 0;
+
+                        bias_offset  <= 0;
+                        mul_offset   <= 0;
+                        shift_offset <= 0;
 
                         counter <= 0;                        
                         state <= QUANT_DATA;
