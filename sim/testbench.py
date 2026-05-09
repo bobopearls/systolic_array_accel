@@ -19,11 +19,10 @@ def generate_sequential_array(input_size, precision):
 
 def generate_random_array(input_size, precision, max_value):
     limit = 1 << (precision-1)                  # account for signed values
-    max_value_offset = min(max_value, limit-1) - 128   # account for zero point adjustment
-    #print(f"Generating random array with max value {max_value_offset} to avoid overflow after quantization")
+    max_value_offset = min(max_value, limit-1)
     
     total_elements = input_size * input_size
-    array_1d = [int(random.uniform(-128,max_value_offset)) for _ in range(total_elements)] # without offset, values are [0, max_value]
+    array_1d = [int(random.uniform(-128,max_value_offset)) for _ in range(total_elements)]
     
     array_2d = []
     for row_index in range(input_size):
@@ -45,7 +44,7 @@ def convert_nchw_to_nhwc(nchw_array):
     
     return nhwc_array
 
-def pointwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, sh, stride=1, i_zero_point=-128, o_zero_point=-128):
+def pointwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, bias, m0, sh, stride=1, o_zero_point=-128):
     # Add support for biases
     
     H = len(ifmap)          # Input rows
@@ -79,11 +78,12 @@ def pointwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, s
                 result = 0
                 # multiply across channels
                 for i in range(len(ifmap[h_in][w_in])):
-                    input_val  = to_precision(ifmap[h_in][w_in][i], 8) - i_zero_point
+                    input_val  = to_precision(ifmap[h_in][w_in][i], 8)
                     kernel_val = to_precision(kernel[c][i], 8)
                     result += input_val * kernel_val
 
-                quant = ((to_precision(result, 16) * m0) >> (16 + sh)) + o_zero_point
+                quant = (((result+bias[c]) * m0[c]) >> (16 + sh[c])) + o_zero_point
+                # print(quant)
                 if quant < -128:
                     quant = -128
                 elif quant > 127:
@@ -118,7 +118,7 @@ def pointwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, s
 
     print("Golden output written successfully")
 
-def depthwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, sh, stride=1, i_zero_point=-128, o_zero_point=-128, depth_mult=1):
+def depthwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, bias, m0, sh, stride=1, o_zero_point=-128, depth_mult=1):
     # Modify this to account for changes in quantization, like in pointwise convolution
     H = len(ifmap)          # Input rows
     W = len(ifmap[0])       # Input columns
@@ -149,12 +149,12 @@ def depthwise_convolution_nhwc(ifmap, kernel, TILING_C, TILING_HW, spad_n, m0, s
                 for ki in range(3):
                     for kj in range(3):
                         # print(f"Processing output pixel ({h}, {w}, {c_out}), kernel position ({ki}, {kj})")
-                        input_val  = to_precision(ifmap[h_start + ki][w_start + kj][c_in], 8) - i_zero_point
+                        input_val  = to_precision(ifmap[h_start + ki][w_start + kj][c_in], 8)
                         kernel_val = to_precision(kernel[ki*3+kj][c_out], 8)
                         sum_value += input_val * kernel_val
 
                 #print(f"Output pixel ({h}, {w}, {c_out}): sum={sum_value}")
-                quant = ((to_precision(sum_value, 16) * m0) >> (16 + sh)) + o_zero_point
+                quant = (((sum_value+bias[c_out]) * m0[c_out]) >> (16 + sh[c_out])) + o_zero_point
                 if quant < -128:
                     quant = -128
                 elif quant > 127:
@@ -199,7 +199,7 @@ def flatten_3d_array(arr):
 def flatten_2d_array(a):
     return [i for r in a for i in r]
 
-def sram_hex_to_mem(array, n, filename):
+def sram_hex_to_mem(array, n, data_width, filename):
     if n <= 0:
         print("Group size must be greater than 0.")
         return
@@ -211,7 +211,7 @@ def sram_hex_to_mem(array, n, filename):
                 # Slice the array to get the group
                 group = array[i:i + n]
                 # Reverse the group, convert each element to hex, and join as a single string
-                hex_string = ''.join(f"{to_precision(x, 8, signed=False):02x}" for x in reversed(group))
+                hex_string = ''.join(f"{to_precision(x, data_width, signed=False):0{data_width//4}x}" for x in reversed(group))
                 file.write(hex_string + '\n')
         
         print(f"Data successfully written to {filename}")
@@ -254,7 +254,8 @@ def write_system_parameters(spad_data_width, addr_width, rows, cols, miso_depth,
     `define ROWS {rows}
     `define COLUMNS {cols}
     `define MISO_DEPTH {miso_depth}
-    `define MPP_DEPTH {mpp_depth}"""
+    `define MPP_DEPTH {mpp_depth}
+    """
 
     with open("../rtl/global.svh", "w") as file:
         file.write(header)
@@ -282,8 +283,8 @@ def main():
     tb_type = args.type
     conv_mode = args.conv_mode
     depth_mult = args.depth_mult
-    c_tile = 16
-    hw_tile = 16
+    c_tile = 2 #smaller tiles for faster synthesis
+    hw_tile = 4
     m0 = 40076
     sh = 5
 
@@ -301,6 +302,7 @@ def main():
         ifmap_max_value = 127 / (input_channels*50*m0/2**(16+sh)) # to avoid overflow. assumes kernel values are in range [-50, 50]
     else: # depthwise convolution
         ifmap_max_value = 127 / (9*50*m0/2**(16+sh))              # to avoid overflow. assumes kernel values are in range [-50, 50] and 3x3=9 kernel size
+    #ifmap_max_value = 127
     # print(ifmap_max_value)
     for _ in range(input_channels):
         # ifmap.append(generate_sequential_array(input_size, 8))
@@ -320,8 +322,17 @@ def main():
             # kernel.append([2*(i+1)] * 1)
             kernel.append([int(random.uniform(0,50))] * input_channels * depth_mult)
 
+    # Generate random bias, scale, shift data for each output channel and write to separate files.
+    bias =  [int(random.uniform(20000, 65535)) for _ in range(output_channels)]
+    scale = [int(random.uniform(20000, 65535)) for _ in range(output_channels)]
+    shift = [int(random.uniform(0, 10)) for _ in range(output_channels)]
+
+
     print(f"ifmap: {ifmap}")
     print(f"kernel: {kernel}")
+    print(f"bias: {bias}")
+    print(f"scale: {scale}")
+    print(f"shift: {shift}")
     k_flat = flatten_2d_array(kernel)
     i_flat = flatten_3d_array(ifmap)
 
@@ -330,7 +341,7 @@ def main():
     data_width = 8
     spad_data_width = 32
     spad_n = spad_data_width // 8
-    addr_width = 16
+    addr_width = 12
     rows = hw_tile
     cols = c_tile
     miso_depth = 16
@@ -347,14 +358,17 @@ def main():
     write_testbench_parameters(input_size, input_channels, output_channels, stride, precision, conv_mode, depth_mult)
 
     
-    sram_hex_to_mem(k_flat, spad_n, 'weights.txt')
-    sram_hex_to_mem(i_flat, spad_n, 'inputs.txt' )
+    sram_hex_to_mem(k_flat, spad_n, data_width, 'weights.txt')
+    sram_hex_to_mem(i_flat, spad_n, data_width, 'inputs.txt' )
+    sram_hex_to_mem(bias, spad_n//4, 4*data_width, 'biases.txt' )
+    sram_hex_to_mem(scale, spad_n//2, 2*data_width, 'scales.txt' )
+    sram_hex_to_mem(shift, spad_n, data_width, 'shifts.txt' )
 
     # Write golden output (respect stride)
     if conv_mode == 0: # pointwise convolution
-        golden_output = pointwise_convolution_nhwc(ifmap, kernel, c_tile, hw_tile, spad_n, m0, sh, stride, i_zero_point=-128, o_zero_point=-128)
+        golden_output = pointwise_convolution_nhwc(ifmap, kernel, c_tile, hw_tile, spad_n, bias, scale, shift, stride, o_zero_point=-128)
     else: # depthwise convolution
-        golden_output = depthwise_convolution_nhwc(ifmap, kernel, c_tile, hw_tile, spad_n, m0, sh, stride, i_zero_point=-128, o_zero_point=-128, depth_mult=depth_mult)
+        golden_output = depthwise_convolution_nhwc(ifmap, kernel, c_tile, hw_tile, spad_n, bias, scale, shift, stride, o_zero_point=-128, depth_mult=depth_mult)
 
     return
 
