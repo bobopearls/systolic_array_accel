@@ -27,9 +27,9 @@ def get_quantization_params(tensor):
     zero_points = [quant.ZeroPoint(i) for i in range(quant.ZeroPointLength())]
     return scales, zero_points
 
-def quantize_multiplier(real_multiplier):
+def quantize_multiplier(real_multiplier, precision=16):
     """
-    Converts a floating point multiplier to a 31-bit fixed-point 
+    Converts a floating point multiplier to a 'precision'-bit fixed-point 
     multiplier and a shift value.
     """
     if real_multiplier == 0.0:
@@ -38,11 +38,11 @@ def quantize_multiplier(real_multiplier):
     # frexp splits a float into a mantissa in [0.5, 1.0) and an exponent
     significand, exponent = math.frexp(real_multiplier)
     
-    # Map the [0.5, 1.0) mantissa to a 31-bit integer
-    q = int(round(significand * (1 << 31)))
+    # Map the [0.5, 1.0) mantissa to a precision-bit integer
+    q = int(round(significand * (1 << precision)))
     
     # Handle rounding overflow edge case
-    if q == (1 << 31):
+    if q == (1 << precision):
         q //= 2
         exponent += 1
     # exponent here is negative, we return the positive value for right shift
@@ -116,13 +116,13 @@ for op_idx in range(subgraph.OperatorsLength()):
         for w_scale in w_scales:
             # Effective scale math: M = (S_in * S_w) / S_out
             effective_scale = (in_scale * w_scale) / out_scale
-            m, s = quantize_multiplier(effective_scale)
+            m, s = quantize_multiplier(effective_scale, precision=16)
             multipliers.append(m)
             shifts.append(s)
             
-        # Pack into numpy arrays as 32-bit integers (for now)
-        mult_array = np.array(multipliers, dtype=np.int32)
-        shift_array = np.array(shifts, dtype=np.int32)
+        # Pack into numpy arrays with proper bit widths
+        mult_array = np.array(multipliers, dtype=np.uint16)
+        shift_array = np.array(shifts, dtype=np.uint8)
         
         # Save multipliers to memory format
         m_filename = f"layer{layer_index}_{op_name}_multipliers.mem"
