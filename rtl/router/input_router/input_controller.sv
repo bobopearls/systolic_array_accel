@@ -33,10 +33,10 @@ module ir_controller #(
     output logic [ADDR_WIDTH-1:0] o_dl_id,
     output logic o_dl_addr_write_en,
 
-    // Output router signals
-    output logic [ADDR_WIDTH-1:0] o_x_s, o_x_e, o_y_s, o_y_e,
-    output logic o_xy_valid,
-    output logic [ADDR_WIDTH-1:0] o_xy_length,
+    // Output router signals — TILING: commented out (spatial tile boundaries now set by software)
+    // output logic [ADDR_WIDTH-1:0] o_x_s, o_x_e, o_y_s, o_y_e,
+    // output logic o_xy_valid,
+    // output logic [ADDR_WIDTH-1:0] o_xy_length,
 
     // Control signals
     output logic o_route_en, // enables tile reader and address comparator
@@ -57,16 +57,16 @@ module ir_controller #(
     output logic o_tile_done,
     output logic o_ready,
     output logic [2:0] o_state,
-    output logic [ADDR_WIDTH-1:0] o_tile_addr,
+    output logic [ADDR_WIDTH-1:0] o_tile_addr
 
-    // To top level control
-    output logic [ADDR_WIDTH-1:0] o_s_r,
-    output logic [ADDR_WIDTH-1:0] o_t
+    // To top level control — TILING: commented out
+    // output logic [ADDR_WIDTH-1:0] o_s_r,
+    // output logic [ADDR_WIDTH-1:0] o_t
 );
     parameter int IDLE = 0;
     parameter int CLEAR = 1;
     parameter int ADDRESS_GENERATION = 2;
-    parameter int XY_INCREMENT = 3;
+    // parameter int XY_INCREMENT = 3;  // TILING: x/y spatial loop state removed — software iterates tiles
     parameter int TILE_COMPARISON = 4;
     parameter int DATA_OUT = 5;
     
@@ -76,9 +76,9 @@ module ir_controller #(
     logic route_en;
     logic wr_o_reset;
     logic first_row;
-    logic [ADDR_WIDTH-1:0] o_x, o_y, x_ofmap, y_ofmap, tile_addr, d_tile_addr, p_tile_addr;
+    // logic [ADDR_WIDTH-1:0] o_x, o_y, x_ofmap, y_ofmap, tile_addr, d_tile_addr, p_tile_addr;  // TILING: x/y spatial counters
     logic [$clog2(SPAD_N)+ADDR_WIDTH-1:0] prev_addr;
-    logic y_increment, x_increment, xy_increment, xy_done;
+    // logic y_increment, x_increment, xy_increment, xy_done;  // TILING: tile step conditions
 
     logic clear_type; // 0 - Clear all, 1 - Clear only FIFO
 
@@ -86,12 +86,12 @@ module ir_controller #(
     // Should not go from the start everytime
 
     assign route_en = i_en & i_fifo_empty;
-    assign x_increment = o_x < (i_o_size * i_stride) - i_stride;
-    assign y_increment = o_y < (i_o_size * i_stride) - i_stride;
-    assign xy_increment = x_increment || y_increment;
+    // assign x_increment = o_x < (i_o_size * i_stride) - i_stride;  // TILING
+    // assign y_increment = o_y < (i_o_size * i_stride) - i_stride;  // TILING
+    // assign xy_increment = x_increment || y_increment;              // TILING
 
-    assign d_tile_addr = addr[0] >> $clog2(SPAD_N); // Assuming the first address corresponds to the first tile. See code below for address generation
-    assign p_tile_addr = (prev_addr + (i_start_addr * SPAD_N)) >> $clog2(SPAD_N);
+    // assign d_tile_addr = addr[0] >> $clog2(SPAD_N); // TILING: first tile addr from dwise kernel positions
+    // assign p_tile_addr = (prev_addr + (i_start_addr * SPAD_N)) >> $clog2(SPAD_N);  // TILING
 
     logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] addr;
 
@@ -113,23 +113,23 @@ module ir_controller #(
             o_dl_addr_write_en <= 0;
             o_tile_done <= 0;
             prev_addr <= 0;
-            o_x <= 0;
-            o_y <= 0;
-            x_ofmap <= 0;
-            y_ofmap <= 0;
+            // o_x <= 0;          // TILING
+            // o_y <= 0;          // TILING
+            // x_ofmap <= 0;      // TILING
+            // y_ofmap <= 0;      // TILING
             o_cntr_clear <= 0;
-            xy_done <= 0;
+            // xy_done <= 0;      // TILING
 
-            o_x_s <= 0;
-            o_x_e <= 0;
-            o_y_s <= 0;
-            o_y_e <= 0;
-            o_xy_valid <= 0;
-            o_xy_length <= 0;
+            // o_x_s <= 0;        // TILING
+            // o_x_e <= 0;        // TILING
+            // o_y_s <= 0;        // TILING
+            // o_y_e <= 0;        // TILING
+            // o_xy_valid <= 0;   // TILING
+            // o_xy_length <= 0;  // TILING
 
             first_row <= 0;
-            o_s_r <= 0;
-            o_t <= 0;
+            // o_s_r <= 0;        // TILING
+            // o_t <= 0;          // TILING
             state <= IDLE;
         end else if (i_reg_clear) begin
             o_route_en <= 0;
@@ -148,33 +148,35 @@ module ir_controller #(
             o_dl_addr_write_en <= 0;
             o_tile_done <= 0;
             prev_addr <= 0;
-            o_x <= 0;
-            o_y <= 0;
-            x_ofmap <= 0;
-            y_ofmap <= 0;
+            // o_x <= 0;          // TILING
+            // o_y <= 0;          // TILING
+            // x_ofmap <= 0;      // TILING
+            // y_ofmap <= 0;      // TILING
             o_cntr_clear <= 0;
-            xy_done <= 0;
+            // xy_done <= 0;      // TILING
 
-            o_x_s <= 0;
-            o_x_e <= 0;
-            o_y_s <= 0;
-            o_y_e <= 0;
-            o_xy_valid <= 0;
-            o_xy_length <= 0;
+            // o_x_s <= 0;        // TILING
+            // o_x_e <= 0;        // TILING
+            // o_y_s <= 0;        // TILING
+            // o_y_e <= 0;        // TILING
+            // o_xy_valid <= 0;   // TILING
+            // o_xy_length <= 0;  // TILING
 
             first_row <= 0;
-            o_s_r <= 0;
-            o_t <= 0;
+            // o_s_r <= 0;        // TILING
+            // o_t <= 0;          // TILING
             state <= IDLE;
         end else begin
             case (state)
                 IDLE: begin
-                    if (xy_done & i_fifo_route_done) begin
-                        o_done <= 1;
-                        // Reset Tile Reader
-                        o_tr_clear <= 1;
-                        o_tr_stall <= 0;
-                    end else if (route_en) begin
+                    // TILING: xy_done condition removed — software drives one tile per route_en pulse
+                    // if (xy_done & i_fifo_route_done) begin
+                    //     o_done <= 1;
+                    //     // Reset Tile Reader
+                    //     o_tr_clear <= 1;
+                    //     o_tr_stall <= 0;
+                    // end else if (route_en) begin
+                    if (route_en) begin
                         if (i_conv_mode) begin
                             clear_type <= 0;
                             o_reg_clear <= 1;
@@ -202,12 +204,12 @@ module ir_controller #(
                     o_tile_done <= 0;
 
                     if (clear_type) begin
-                        o_xy_valid <= 1;
+                        // o_xy_valid <= 1;  // TILING: port commented out
                         state <= TILE_COMPARISON;
                     end else begin
                         state <= ADDRESS_GENERATION;
-                        o_x_s <= x_ofmap;    
-                        o_y_s <= y_ofmap;
+                        // o_x_s <= x_ofmap;  // TILING: tile start x passed to output router
+                        // o_y_s <= y_ofmap;  // TILING: tile start y passed to output router
                     end
                 end
 
@@ -218,72 +220,73 @@ module ir_controller #(
                         if (!first_row) begin
                             first_row <= 1;
 
-                            if (d_tile_addr > 0) begin
-                                tile_addr <= d_tile_addr - 1;
-                            end else begin
-                                tile_addr <= 0;
-                            end
+                            // if (d_tile_addr > 0) begin          // TILING: d_tile_addr commented out
+                            //     tile_addr <= d_tile_addr - 1;   // TILING: tile_addr commented out
+                            // end else begin                       // TILING
+                            //     tile_addr <= 0;                  // TILING
+                            // end                                  // TILING
                         end
                     end else begin
-                        // Pwise
-                        o_dl_end_addr <= (i_start_addr * SPAD_N) + o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
-                        prev_addr <= o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);
-                        o_dl_start_addr <= prev_addr + (i_start_addr * SPAD_N);
+                        // Pwise — TILING: o_x/o_y address offsets removed; software pre-computes i_start_addr per tile
+                        // o_dl_end_addr <= (i_start_addr * SPAD_N) + o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);  // TILING
+                        // prev_addr <= o_x * (i_i_size * i_i_c_size) + (o_y * i_i_c_size) + (i_i_c_size);  // TILING
+                        // o_dl_start_addr <= prev_addr + (i_start_addr * SPAD_N);  // TILING
 
                         if (!first_row) begin
                             first_row <= 1;
 
-                            if (p_tile_addr > 0) begin
-                                tile_addr <= p_tile_addr - 1;
-                            end else begin
-                                tile_addr <= 0;
-                            end
+                            // if (p_tile_addr > 0) begin  // TILING
+                            //     tile_addr <= p_tile_addr - 1;  // TILING
+                            // end else begin  // TILING
+                            //     tile_addr <= 0;  // TILING
+                            // end  // TILING
                         end
                     end
                     o_dl_addr_write_en <= 1;
-                    state <= XY_INCREMENT;
+                    // state <= XY_INCREMENT;  // TILING: no longer loops back through pixels; goes straight to comparison
+                    state <= TILE_COMPARISON;
                 end
 
-                // This maps the Height and Width of ifmap to Systolic Array
-                XY_INCREMENT: begin
-                    o_dl_addr_write_en <= 0;
-                    if (y_increment) begin
-                        o_y <= o_y + i_stride;
-                        y_ofmap <= y_ofmap + 1;
-                    end else begin
-                        if (x_increment) begin
-                            o_y <= 0;
-                            y_ofmap <= 0;
-                            o_x <= o_x + i_stride;
-                            x_ofmap <= x_ofmap + 1;
-                            o_y_e <= y_ofmap;
-                        end else begin
-                            o_x <= 0;
-                            x_ofmap <= 0;
-                            xy_done <= 1;
-                            o_x_e <= x_ofmap;
-                            o_y_e <= y_ofmap;
-                            o_xy_length <= o_dl_id;
-                            o_xy_valid <= 1;
-                            state <= TILE_COMPARISON;
-                        end
-                    end
-
-                    if (o_dl_id == ROW - 1) begin
-                        o_dl_id <= 0;
-                        o_x_e <= x_ofmap;
-                        if (y_ofmap > o_y_e) begin
-                            o_y_e <= y_ofmap;
-                        end
-                        o_xy_length <= o_dl_id;
-                        o_xy_valid <= 1;
-                        o_s_r <= o_dl_id;
-                        state <= TILE_COMPARISON;
-                    end else if (xy_increment) begin
-                        o_dl_id <= o_dl_id + 1;
-                        state <= ADDRESS_GENERATION;
-                    end
-                end
+                // TILING: XY_INCREMENT state entirely commented out.
+                // Hardware no longer iterates x/y pixels — software configures one tile per route_en pulse.
+                // XY_INCREMENT: begin
+                //     o_dl_addr_write_en <= 0;
+                //     if (y_increment) begin
+                //         o_y <= o_y + i_stride;
+                //         y_ofmap <= y_ofmap + 1;
+                //     end else begin
+                //         if (x_increment) begin
+                //             o_y <= 0;
+                //             y_ofmap <= 0;
+                //             o_x <= o_x + i_stride;
+                //             x_ofmap <= x_ofmap + 1;
+                //             o_y_e <= y_ofmap;
+                //         end else begin
+                //             o_x <= 0;
+                //             x_ofmap <= 0;
+                //             xy_done <= 1;
+                //             o_x_e <= x_ofmap;
+                //             o_y_e <= y_ofmap;
+                //             o_xy_length <= o_dl_id;
+                //             o_xy_valid <= 1;
+                //             state <= TILE_COMPARISON;
+                //         end
+                //     end
+                //     if (o_dl_id == ROW - 1) begin
+                //         o_dl_id <= 0;
+                //         o_x_e <= x_ofmap;
+                //         if (y_ofmap > o_y_e) begin
+                //             o_y_e <= y_ofmap;
+                //         end
+                //         o_xy_length <= o_dl_id;
+                //         o_xy_valid <= 1;
+                //         o_s_r <= o_dl_id;
+                //         state <= TILE_COMPARISON;
+                //     end else if (xy_increment) begin
+                //         o_dl_id <= o_dl_id + 1;
+                //         state <= ADDRESS_GENERATION;
+                //     end
+                // end
 
                 TILE_COMPARISON: begin
                     first_row <= 0;
@@ -292,7 +295,7 @@ module ir_controller #(
                     if (i_fifo_route_done || i_fifo_full || i_fifo_idle) begin
                         o_route_en <= 0;
                         o_ready <= 1;
-                        o_t <= i_slots;
+                        // o_t <= i_slots;  // TILING: tile slot count tracked by software
 
                         state <= DATA_OUT;
                     end else begin
@@ -345,6 +348,6 @@ module ir_controller #(
             end
         end
     endgenerate
-
-    assign o_tile_addr = tile_addr;
+G
+    // assign o_tile_addr = tile_addr;  // TILING: tile_addr signal removed
 endmodule
