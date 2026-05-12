@@ -19,7 +19,6 @@ module wr_controller #(
     input logic [ADDR_WIDTH-1:0] i_i_c_size,
     input logic [ADDR_WIDTH-1:0] i_o_c_size,
     input logic [ADDR_WIDTH-1:0] i_i_c,
-    input logic [ADDR_WIDTH-1:0] i_depth_mult, // Only used for DW. Ignored for PW.
     input logic [ADDR_WIDTH-1:0] i_start_addr,
 
     // Data lane address assignment
@@ -30,8 +29,8 @@ module wr_controller #(
     output logic o_dl_addr_write_en,
 
     // Output router signals
-    output logic [ADDR_WIDTH-1:0] o_c_s, o_c_e,
-    output logic o_c_valid,
+    //output logic [ADDR_WIDTH-1:0] o_c_s, o_c_e, // TILING
+    //output logic o_c_valid, // TILING
 
     // Control signals
     output logic o_route_en, // enables tile reader and address comparator
@@ -57,7 +56,7 @@ module wr_controller #(
     parameter int IDLE = 0;
     parameter int CLEAR = 1;
     parameter int ADDRESS_GENERATION = 2;
-    parameter int C_INCREMENT = 3;
+    //parameter int C_INCREMENT = 3; // TILING, removed channel loop state since software handles now
     parameter int TILE_COMPARISON = 4;
     parameter int DATA_OUT = 5;
     
@@ -67,15 +66,15 @@ module wr_controller #(
 
     logic first_col;
 
-    logic [ADDR_WIDTH-1:0] o_c;
-    logic c_increment, c_done;
+    //logic [ADDR_WIDTH-1:0] o_c; // TILING 
+    //logic c_increment, c_done; // TILING COUNTERS REMOVED
 
     logic clear_type; // 0 - Clear all, 1 - Clear only FIFO
-    logic [ADDR_WIDTH-1:0] d_tile_addr, p_tile_addr;
+    // logic [ADDR_WIDTH-1:0] d_tile_addr, p_tile_addr; // TILING, start addr tile that was generated
     assign route_en = i_en & i_fifo_empty;
-    assign c_increment = (i_conv_mode) ? (o_c < i_depth_mult - 1) : (o_c < i_o_c_size - 1);     // If DW, we need to increment c until we reach the depth multiplier. If PW, we need to increment until we reach the output channel size
-    assign d_tile_addr = addr[0] >> $clog2(SPAD_N);                                             // Assuming the first address corresponds to the first tile. See code below for address generation
-    assign p_tile_addr = ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N);
+    //assign c_increment = o_c < i_o_c_size - 1; // TILING
+    //assign d_tile_addr = i_start_addr; // TILING
+    // assign p_tile_addr = ((i_start_addr * SPAD_N) + o_c * i_i_c_size) >> $clog2(SPAD_N); // TILING 
 
     logic [0:KERNEL_LENGTH-1][$clog2(SPAD_N)+ADDR_WIDTH-1:0] addr;
 
@@ -96,14 +95,16 @@ module wr_controller #(
             o_dl_id <= 0;
             o_dl_addr_write_en <= 0;
             o_cntr_clear <= 0;
+            /*
             o_c <= 0;
             c_done <= 0;
             o_c_s <= 0;
             o_c_e <= 0;
-            o_c_valid <= 0;
+            o_c_valid <= 0; // TILING
+            */
             state <= IDLE;
             first_col <= 0;
-            o_s_c <= 0;
+            // o_s_c <= 0; // TILING
             o_tile_addr <= 0;
         end else if (i_reg_clear) begin
             o_route_en <= 0;
@@ -121,24 +122,29 @@ module wr_controller #(
             o_dl_id <= 0;
             o_dl_addr_write_en <= 0;
             o_cntr_clear <= 0;
+            /*
             o_c <= 0;
             c_done <= 0;
             o_c_s <= 0;
             o_c_e <= 0;
-            o_c_valid <= 0;
+            o_c_valid <= 0; // TILING
+            */
             state <= IDLE;
             first_col <= 0;
-            o_s_c <= 0;
+            //o_s_c <= 0; // TILING
             o_tile_addr <= 0;
         end else begin
             case (state)
                 IDLE: begin
                     // If we reset just reuse the weights
+                    /* // TILING:
                     if (c_done & i_fifo_route_done) begin
                         o_done <= 1;
                         o_tr_clear <= 1;
                         o_tr_stall <= 0;
                     end else if (route_en) begin
+                    */
+                    if(route_en)begin
                         if (o_context_done & ~i_fifo_route_done) begin
                             clear_type <= 1;
                             o_reg_clear <= 0;
@@ -146,7 +152,7 @@ module wr_controller #(
                             clear_type <= 0;
                             o_reg_clear <= 1;
                         end
-                        o_c <= i_o_c;
+                        // o_c <= i_o_c; // TILING, CHANNEL COUNTER
                         o_cntr_clear <= 0;
                         o_fifo_clear <= 0;
                         o_tr_clear <= 0;
@@ -161,11 +167,11 @@ module wr_controller #(
                     o_reg_clear <= 0;
                     o_dl_addr_write_en <= 0;
                     if (clear_type) begin
-                        o_c_valid <= 1;
+                       //o_c_valid <= 1; // TILING
                         state <= TILE_COMPARISON;
                     end else begin
                         state <= ADDRESS_GENERATION;
-                        o_c_s <= o_c;
+                        // o_c_s <= o_c; // TILING
                     end
                 end
 
@@ -175,62 +181,79 @@ module wr_controller #(
                         o_dl_sw_addr <= addr;
                         if (!first_col) begin
                             first_col <= 1;
-
+                            /* // TILING
                             if (d_tile_addr > 0) begin
                                 o_tile_addr <= d_tile_addr - 1;
                             end else begin
                                 o_tile_addr <= 0;
                             end
+                            */
 
                         end
                     end else begin
                         // Pwise
-                        o_dl_end_addr <= (i_start_addr * SPAD_N) + (o_c + 1) * i_i_c_size;
-                        o_dl_start_addr <= (i_start_addr * SPAD_N) + o_c * i_i_c_size;
+                        //o_dl_end_addr <= (i_start_addr * SPAD_N) + (o_c + 1) * i_i_c_size; // TILING
+                        //o_dl_start_addr <= (i_start_addr * SPAD_N) + o_c * i_i_c_size; // TILING
             
                         if (!first_col) begin
                             first_col <= 1;
-
+                            /* // TILING:
                             if (p_tile_addr > 0) begin
                                 o_tile_addr <= p_tile_addr - 1;
                             end else begin
                                 o_tile_addr <= 0;
                             end
+                            */
                         end
                     end
 
                     o_dl_addr_write_en <= 1;
-                    state <= C_INCREMENT;
+                    // state <= C_INCREMENT; // TILING: REMOVE THE LOOP BACK OF CHANNELS
+                    state <= TILE_COMPARISON;
 
 
                 end
-
+                /* // TILING STATE, COMPLETELY REMOVE 
+                // The hardware should not be iterating through the output channles
+                // The software is the one that should be doing this, one channel slice per every route_en
                 C_INCREMENT: begin
                     o_dl_addr_write_en <= 0;
-                    if (c_increment) begin
-                        o_c <= o_c + 1;
-                    end else begin
-                        o_c <= 0;
-                        o_c_e <= o_c;
-                        o_c_valid <= 1;
-                        c_done <= 1;
-                        state <= TILE_COMPARISON;
-                    end
-
-                    if (o_dl_id == COLUMN - 1) begin
+                    if (i_conv_mode) begin
+                        // Dwise
+                        // We don't need to increment the channel
+                        // Since we need only one channel at a time
                         o_dl_id <= 0;
-                        o_c_e <= o_c;
-                        o_c_valid <= 1;
-                        o_s_c <= o_dl_id;
+                        o_done <= 1;
                         state <= TILE_COMPARISON;
-                    end else if (c_increment) begin
-                        o_dl_id <= o_dl_id + 1;
-                        state <= ADDRESS_GENERATION;
-                    end
-                end
+                    end else begin
+                        // Pwise
+                        if (c_increment) begin
+                            o_c <= o_c + 1;
+                        end else begin
+                            o_c <= 0;
+                            o_c_e <= o_c;
+                            o_c_valid <= 1;
+                            c_done <= 1;
+                            state <= TILE_COMPARISON;
+                        end
 
+                        if (o_dl_id == COLUMN - 1) begin
+                            o_dl_id <= 0;
+                            o_c_e <= o_c;
+                            o_c_valid <= 1;
+                            o_s_c <= o_dl_id;
+                            state <= TILE_COMPARISON;
+                        end else if (c_increment) begin
+                            o_dl_id <= o_dl_id + 1;
+                            state <= ADDRESS_GENERATION;
+                        end
+                    end
+
+
+                end
+                */
                 TILE_COMPARISON: begin
-                    o_c_valid <= 0;
+                    // o_c_valid <= 0; // TILING
                     // If FIFO is full - reuse weights in Weight FIFO
                     // If FIFO route done - new set of weights
                     if (i_fifo_route_done || i_fifo_full || i_fifo_idle) begin
@@ -269,7 +292,8 @@ module wr_controller #(
                 always_comb begin
                     if (i_conv_mode) begin
                         // o_c, i_i_c, i_i_c_size
-                        addr[addr_idx] = (i_start_addr * SPAD_N) + (x * KERNEL_SIZE + y) * i_o_c_size + i_i_c * i_depth_mult + o_c;
+                        // addr[addr_idx] = (i_start_addr * SPAD_N) + (x * KERNEL_SIZE) * i_i_c_size + y * i_i_c_size + i_i_c; // TILING
+                        addr[addr_idx] = '0; // placeholder until software-driven o_c CSR is wired in
                     end else begin
                         addr[addr_idx] = '0;
                     end
